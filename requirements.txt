@@ -1,0 +1,11 @@
+langchain
+langchain-community
+langchain-openai
+langchain-google-genai
+langchain-anthropic
+streamlit
+python-dotenv
+tiktoken
+pandas
+altair
+plotly
