@@ -3,12 +3,7 @@ from __future__ import annotations
 import os
 import random
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence, Tuple
-
-from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import ChatOpenAI
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from ..core.base import Agent, AgentResponse
 from ..core.pricing import estimate_cost
@@ -215,18 +210,37 @@ def _to_int(value: object, fallback: int = 0) -> int:
         return fallback
 
 
+def _metadata_dict(response: Any) -> Dict[str, Any]:
+    metadata = getattr(response, "response_metadata", {})
+    if isinstance(metadata, dict):
+        return metadata
+    return {}
+
+
+def _response_text(response: Any) -> str:
+    content = getattr(response, "content", "")
+    return _coerce_content(content)
+
+
 def _build_messages(system_prompt: str, query: str, context: Optional[str]) -> List[object]:
     rolling_context = context.strip() if context else "No previous context."
-    return [
-        SystemMessage(content=system_prompt or "You are a helpful assistant."),
-        HumanMessage(
-            content=(
-                f"Original Question: {query}\n\n"
-                f"Context from previous debate rounds:\n{rolling_context}\n\n"
-                "Respond with your best current answer. If context exists, critique and improve previous arguments."
-            )
-        ),
-    ]
+    content = (
+        f"Original Question: {query}\n\n"
+        f"Context from previous debate rounds:\n{rolling_context}\n\n"
+        "Respond with your best current answer. If context exists, critique and improve previous arguments."
+    )
+    try:
+        from langchain_core.messages import HumanMessage, SystemMessage
+
+        return [
+            SystemMessage(content=system_prompt or "You are a helpful assistant."),
+            HumanMessage(content=content),
+        ]
+    except Exception:
+        return [
+            {"role": "system", "content": system_prompt or "You are a helpful assistant."},
+            {"role": "user", "content": content},
+        ]
 
 
 class OpenAIAgent(Agent):
@@ -242,19 +256,32 @@ class OpenAIAgent(Agent):
         self.model_name = model_name
         self.api_key = (api_key or os.getenv("OPENAI_API_KEY", "")).strip()
         self.temperature = temperature
+        self.init_error: Optional[str] = None
         if self.api_key:
-            self.model = ChatOpenAI(model=model_name, api_key=self.api_key, temperature=temperature)
+            try:
+                from langchain_openai import ChatOpenAI
+
+                self.model = ChatOpenAI(model=model_name, api_key=self.api_key, temperature=temperature)
+            except Exception as exc:
+                self.model = None
+                self.init_error = str(exc)
 
     def generate_response(self, query: str, context: Optional[str] = None) -> AgentResponse:
         if not self.model:
+            if self.api_key and self.init_error:
+                return AgentResponse(
+                    content=f"Error: OpenAI client unavailable ({self.init_error}).",
+                    confidence=0.0,
+                    model_name=self.model_name,
+                )
             return AgentResponse(content="Error: OpenAI API key is missing.", confidence=0.0, model_name=self.model_name)
 
         messages = _build_messages(self.system_prompt, query, context)
         try:
             full_response = self.model.invoke(messages)
-            content = _coerce_content(full_response.content)
+            content = _response_text(full_response)
 
-            usage = full_response.response_metadata.get("token_usage", {})
+            usage = _metadata_dict(full_response).get("token_usage", {})
             input_tokens = _to_int(usage.get("prompt_tokens"), fallback=max(len(str(messages)) // 4, 1))
             output_tokens = _to_int(usage.get("completion_tokens"), fallback=max(len(content) // 4, 1))
             total_tokens = _to_int(usage.get("total_tokens"), fallback=input_tokens + output_tokens)
@@ -283,23 +310,36 @@ class GeminiAgent(Agent):
         self.model_name = model_name
         self.api_key = (api_key or os.getenv("GOOGLE_API_KEY", "")).strip()
         self.temperature = temperature
+        self.init_error: Optional[str] = None
         if self.api_key:
-            self.model = ChatGoogleGenerativeAI(
-                model=model_name,
-                google_api_key=self.api_key,
-                temperature=temperature,
-            )
+            try:
+                from langchain_google_genai import ChatGoogleGenerativeAI
+
+                self.model = ChatGoogleGenerativeAI(
+                    model=model_name,
+                    google_api_key=self.api_key,
+                    temperature=temperature,
+                )
+            except Exception as exc:
+                self.model = None
+                self.init_error = str(exc)
 
     def generate_response(self, query: str, context: Optional[str] = None) -> AgentResponse:
         if not self.model:
+            if self.api_key and self.init_error:
+                return AgentResponse(
+                    content=f"Error: Google client unavailable ({self.init_error}).",
+                    confidence=0.0,
+                    model_name=self.model_name,
+                )
             return AgentResponse(content="Error: Google API key is missing.", confidence=0.0, model_name=self.model_name)
 
         messages = _build_messages(self.system_prompt, query, context)
         try:
             full_response = self.model.invoke(messages)
-            content = _coerce_content(full_response.content)
+            content = _response_text(full_response)
 
-            usage = full_response.response_metadata.get("usage_metadata", {})
+            usage = _metadata_dict(full_response).get("usage_metadata", {})
             input_tokens = _to_int(usage.get("prompt_token_count"), fallback=max(len(str(messages)) // 4, 1))
             output_tokens = _to_int(usage.get("candidates_token_count"), fallback=max(len(content) // 4, 1))
             total_tokens = _to_int(usage.get("total_token_count"), fallback=input_tokens + output_tokens)
@@ -328,23 +368,36 @@ class AnthropicAgent(Agent):
         self.model_name = model_name
         self.api_key = (api_key or os.getenv("ANTHROPIC_API_KEY", "")).strip()
         self.temperature = temperature
+        self.init_error: Optional[str] = None
         if self.api_key:
-            self.model = ChatAnthropic(
-                model=model_name,
-                anthropic_api_key=self.api_key,
-                temperature=temperature,
-            )
+            try:
+                from langchain_anthropic import ChatAnthropic
+
+                self.model = ChatAnthropic(
+                    model=model_name,
+                    anthropic_api_key=self.api_key,
+                    temperature=temperature,
+                )
+            except Exception as exc:
+                self.model = None
+                self.init_error = str(exc)
 
     def generate_response(self, query: str, context: Optional[str] = None) -> AgentResponse:
         if not self.model:
+            if self.api_key and self.init_error:
+                return AgentResponse(
+                    content=f"Error: Anthropic client unavailable ({self.init_error}).",
+                    confidence=0.0,
+                    model_name=self.model_name,
+                )
             return AgentResponse(content="Error: Anthropic API key is missing.", confidence=0.0, model_name=self.model_name)
 
         messages = _build_messages(self.system_prompt, query, context)
         try:
             full_response = self.model.invoke(messages)
-            content = _coerce_content(full_response.content)
+            content = _response_text(full_response)
 
-            usage = full_response.response_metadata.get("usage", {})
+            usage = _metadata_dict(full_response).get("usage", {})
             input_tokens = _to_int(usage.get("input_tokens"), fallback=max(len(str(messages)) // 4, 1))
             output_tokens = _to_int(usage.get("output_tokens"), fallback=max(len(content) // 4, 1))
 
