@@ -3,6 +3,7 @@ langchain-community
 langchain-openai
 langchain-google-genai
 langchain-anthropic
+flask
 streamlit
 python-dotenv
 tiktoken

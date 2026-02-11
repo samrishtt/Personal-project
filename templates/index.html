@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SynapseForge — Multi-Model Collaborative Intelligence</title>
+  <meta name="description" content="SynapseForge fuses multiple AI models into a single collaborative intelligence engine. Integrate OpenAI, Google Gemini, and Anthropic Claude to produce superior answers.">
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="app-container">
+
+  <!-- ═══ Hero ═══ -->
+  <header class="hero">
+    <div class="hero-badge"><span class="dot"></span> Multi-Model Collaborative AI</div>
+    <h1>SynapseForge</h1>
+    <p>Fuse multiple AI models into one collaborative intelligence. Each model contributes unique strengths — together they deliver answers no single model can match.</p>
+  </header>
+
+  <!-- ═══ Tabs ═══ -->
+  <nav class="nav-tabs" id="mainNav">
+    <button class="nav-tab active" data-tab="studio">⚡ Studio</button>
+    <button class="nav-tab" data-tab="feed">📜 Synthesis Feed</button>
+    <button class="nav-tab" data-tab="analytics">📊 Analytics</button>
+  </nav>
+
+  <!-- ════════════════════════  STUDIO TAB  ════════════════════════ -->
+  <div class="tab-content active" id="tab-studio">
+    <div class="grid-2">
+      <!-- Left: API Keys + Config -->
+      <div>
+        <div class="card section">
+          <div class="card-header">
+            <div class="card-title"><span class="icon">🔑</span> Provider API Keys</div>
+          </div>
+          <div class="key-group">
+            <div class="key-label">
+              <span style="color:var(--accent-emerald)">●</span> OpenAI
+              <span class="key-status missing" id="status-openai">Missing</span>
+            </div>
+            <input class="key-input" type="password" id="key-openai" placeholder="sk-..." data-provider="openai">
+          </div>
+          <div class="key-group">
+            <div class="key-label">
+              <span style="color:var(--accent-amber)">●</span> Google (Gemini)
+              <span class="key-status missing" id="status-google">Missing</span>
+            </div>
+            <input class="key-input" type="password" id="key-google" placeholder="AIza..." data-provider="google">
+          </div>
+          <div class="key-group">
+            <div class="key-label">
+              <span style="color:var(--accent-rose)">●</span> Anthropic (Claude)
+              <span class="key-status missing" id="status-anthropic">Missing</span>
+            </div>
+            <input class="key-input" type="password" id="key-anthropic" placeholder="sk-ant-..." data-provider="anthropic">
+          </div>
+        </div>
+
+        <!-- Config -->
+        <div class="card section">
+          <div class="card-header">
+            <div class="card-title"><span class="icon">⚙️</span> Synthesis Config</div>
+          </div>
+          <div class="slider-group">
+            <div class="slider-label"><span>Collaboration Rounds</span><span id="val-rounds">3</span></div>
+            <input class="slider-input" type="range" id="cfg-rounds" min="1" max="8" value="3">
+          </div>
+          <div class="slider-group">
+            <div class="slider-label"><span>Budget Cap (USD)</span><span id="val-budget">$0.75</span></div>
+            <input class="slider-input" type="range" id="cfg-budget" min="5" max="1000" value="75" step="5">
+          </div>
+          <div class="slider-group">
+            <div class="slider-label"><span>Temperature</span><span id="val-temp">0.20</span></div>
+            <input class="slider-input" type="range" id="cfg-temp" min="0" max="100" value="20">
+          </div>
+          <div class="slider-group">
+            <div class="slider-label"><span>Consensus Threshold</span><span id="val-consensus">55%</span></div>
+            <input class="slider-input" type="range" id="cfg-consensus" min="20" max="90" value="55">
+          </div>
+          <div class="key-group" style="margin-top:12px">
+            <div class="key-label">Preset</div>
+            <select class="select-input" id="preset-select">
+              <option value="Balanced">⚖️ Balanced — Fast & cost-effective</option>
+              <option value="Rigorous">🔬 Rigorous — Maximum quality</option>
+              <option value="Demo">🎭 Demo — Mock agents (free)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Model Selection + Query -->
+      <div>
+        <div class="card section">
+          <div class="card-header">
+            <div class="card-title"><span class="icon">🤖</span> Model Team</div>
+          </div>
+          <div class="section-title" style="font-size:0.85rem">Core Contributors</div>
+          <div id="model-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px"></div>
+
+          <div class="key-group">
+            <div class="key-label">Judge / Synthesizer</div>
+            <select class="select-input" id="select-judge"></select>
+          </div>
+          <div class="key-group">
+            <div class="key-label">Verification Agent (optional)</div>
+            <select class="select-input" id="select-fact"><option value="">None</option></select>
+          </div>
+          <div class="key-group">
+            <div class="key-label">Stress-Test Agent (optional)</div>
+            <select class="select-input" id="select-adversarial"><option value="">None</option></select>
+          </div>
+        </div>
+
+        <div class="card section">
+          <div class="card-header">
+            <div class="card-title"><span class="icon">💬</span> Research Query</div>
+          </div>
+          <textarea class="query-area" id="query-input" placeholder="Ask a complex question and let multiple AI models collaborate to produce the best possible answer...
+
+Example: What are the most promising approaches to achieving AGI safety, and how should research priorities be allocated over the next 5 years?"></textarea>
+        </div>
+
+        <!-- Lineup Preview -->
+        <div class="grid-4" id="lineup-metrics" style="margin-bottom:16px">
+          <div class="metric-card"><div class="metric-value" id="m-lineup">0</div><div class="metric-label">Team Size</div></div>
+          <div class="metric-card"><div class="metric-value" id="m-models">0</div><div class="metric-label">Models</div></div>
+          <div class="metric-card"><div class="metric-value" id="m-providers">0</div><div class="metric-label">Providers</div></div>
+          <div class="metric-card"><div class="metric-value" id="m-rounds">3</div><div class="metric-label">Rounds</div></div>
+        </div>
+
+        <button class="btn btn-primary btn-full" id="btn-run" disabled>
+          <span>⚡</span> Launch Collaborative Synthesis
+        </button>
+        <button class="btn btn-secondary btn-full" id="btn-clear" style="margin-top:8px;display:none">
+          Clear Results
+        </button>
+      </div>
+    </div>
+
+    <!-- Results Area -->
+    <div id="results-area" style="display:none;margin-top:32px">
+      <div class="synthesis-panel" id="synthesis-panel">
+        <div class="synthesis-label">⚡ SynapseForge — Collaborative Synthesis</div>
+        <div class="grid-4" style="margin-bottom:20px" id="result-metrics"></div>
+        <div class="synthesis-body" id="synthesis-body"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════  FEED TAB  ════════════════════════ -->
+  <div class="tab-content" id="tab-feed">
+    <div id="feed-empty" class="card" style="text-align:center;padding:60px;color:var(--text-muted)">
+      <div style="font-size:2.5rem;margin-bottom:12px">📜</div>
+      <p>Run a synthesis from the Studio tab to see the collaboration feed here.</p>
+    </div>
+    <div id="feed-content" style="display:none"></div>
+  </div>
+
+  <!-- ════════════════════════  ANALYTICS TAB  ════════════════════════ -->
+  <div class="tab-content" id="tab-analytics">
+    <div id="analytics-empty" class="card" style="text-align:center;padding:60px;color:var(--text-muted)">
+      <div style="font-size:2.5rem;margin-bottom:12px">📊</div>
+      <p>Analytics will appear here after a synthesis run.</p>
+    </div>
+    <div id="analytics-content" style="display:none"></div>
+  </div>
+
+  <footer class="footer">
+    SynapseForge — Multi-Model Collaborative Intelligence Engine<br>
+    <span style="opacity:0.6">Built by Samrisht · MIT Application Project · 2026</span>
+  </footer>
+</div>
+
+<!-- ═══ Loading Overlay ═══ -->
+<div class="spinner-overlay" id="loading" style="display:none">
+  <div class="spinner"></div>
+  <div class="spinner-text" id="loading-text">Initializing collaborative synthesis...</div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -42,7 +42,7 @@ from debate_app.core.prompts import (
 )
 
 load_dotenv()
-st.set_page_config(page_title="DebateMind Studio", page_icon="DM", layout="wide")
+st.set_page_config(page_title="SynapseForge Studio", page_icon="⚡", layout="wide")
 
 PRESETS = {
     "Balanced": {
@@ -78,39 +78,41 @@ def inject_css() -> None:
             @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
             .stApp {
                 background:
-                    radial-gradient(circle at 8% -15%, #c9f2e6 0%, transparent 32%),
-                    radial-gradient(circle at 92% -20%, #ffe1c4 0%, transparent 35%),
-                    linear-gradient(140deg, #f8f5ee 0%, #edf3f8 100%);
+                    radial-gradient(circle at 10% -10%, #202736 0%, transparent 20%),
+                    radial-gradient(circle at 90% -10%, #1e293b 0%, transparent 20%),
+                    linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
                 font-family: 'Space Grotesk', sans-serif;
-                color: #132a42;
+                color: #f8fafc;
             }
             .hero {
                 border-radius: 20px;
-                padding: 1.4rem 1.5rem;
-                border: 1px solid rgba(14, 34, 56, 0.2);
-                background: linear-gradient(130deg, #183758 0%, #21678d 60%, #2b9a89 100%);
-                box-shadow: 0 14px 30px rgba(12, 31, 50, 0.22);
-                margin-bottom: 1rem;
+                padding: 2rem;
+                border: 1px solid rgba(148, 163, 184, 0.1);
+                background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(168, 85, 247, 0.05) 100%);
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+                margin-bottom: 2rem;
+                text-align: center;
             }
-            .hero h1 { margin: 0; color: #f4fbff; }
-            .hero p { margin: 0.35rem 0 0 0; color: #d7ebf9; }
+            .hero h1 { margin: 0; background: linear-gradient(to right, #818cf8, #c084fc, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700; }
+            .hero p { margin: 0.5rem 0 0 0; color: #94a3b8; font-size: 1.1rem; }
             .panel {
-                border: 1px solid rgba(16, 34, 56, 0.16);
-                background: rgba(255, 255, 255, 0.86);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                background: rgba(30, 41, 59, 0.6);
                 border-radius: 14px;
-                padding: 0.75rem 0.9rem;
-                margin-bottom: 0.55rem;
-                backdrop-filter: blur(4px);
+                padding: 1rem;
+                margin-bottom: 0.75rem;
+                backdrop-filter: blur(8px);
             }
-            .status-good { color: #116b45; font-weight: 700; }
-            .status-bad { color: #9b1f1f; font-weight: 700; }
-            .mono { font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; }
+            .status-good { color: #34d399; font-weight: 600; }
+            .status-bad { color: #f87171; font-weight: 600; }
+            .mono { font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; color: #64748b; }
             .answer {
-                border: 1px solid rgba(16, 34, 56, 0.2);
-                border-left: 6px solid #1a7d67;
+                border: 1px solid rgba(99, 102, 241, 0.2);
+                border-left: 4px solid #818cf8;
                 border-radius: 12px;
-                padding: 0.9rem;
-                background: rgba(255, 255, 255, 0.9);
+                padding: 1.5rem;
+                background: rgba(30, 41, 59, 0.8);
+                line-height: 1.7;
             }
         </style>
         """,
@@ -315,7 +317,7 @@ def normalize_run_payload(run: Optional[Dict[str, object]]) -> Optional[Dict[str
     judge_payload = run.get("judge")
     if isinstance(judge_payload, dict):
         run["judge"] = {
-            "agent": str(judge_payload.get("agent", "Judge")),
+            "agent": str(judge_payload.get("agent", "Synthesizer")),
             "role": str(judge_payload.get("role", "judge")),
             "provider": str(judge_payload.get("provider", "Unknown")),
             "model": str(judge_payload.get("model", "unknown")),
@@ -331,6 +333,7 @@ def normalize_run_payload(run: Optional[Dict[str, object]]) -> Optional[Dict[str
         run["judge"] = None
 
     return run
+
 
 def sanitize_state(opts: Dict[str, List[str]]) -> None:
     base_debaters = [m for m in PRESETS["Balanced"]["debaters"] if m in opts["debater"]]
@@ -416,8 +419,8 @@ def run_debate(
             (
                 "debater",
                 spec,
-                f"Debater {i}",
-                build_agent_from_spec(spec, DEBATER_SYSTEM_PROMPT, keys, f"Debater {i}", temp),
+                f"Contributor {i}",
+                build_agent_from_spec(spec, DEBATER_SYSTEM_PROMPT, keys, f"Contributor {i}", temp),
             )
         )
 
@@ -427,7 +430,7 @@ def run_debate(
             (
                 "fact_checker",
                 spec,
-                "Fact Checker",
+                "Verifier",
                 build_agent_from_spec(
                     spec,
                     fill_prompt(
@@ -435,7 +438,7 @@ def run_debate(
                         {"round_number": "{round}", "agent_name": "multiple agents"},
                     ),
                     keys,
-                    "Fact Checker",
+                    "Verifier",
                     temp,
                 ),
             )
@@ -447,7 +450,7 @@ def run_debate(
             (
                 "adversarial",
                 spec,
-                "Devils Advocate",
+                "Stress Tester",
                 build_agent_from_spec(
                     spec,
                     fill_prompt(
@@ -455,7 +458,7 @@ def run_debate(
                         {"round_number": "{round}", "agent_name": "consensus", "topic": query},
                     ),
                     keys,
-                    "Devils Advocate",
+                    "Stress Tester",
                     temp,
                 ),
             )
@@ -466,7 +469,7 @@ def run_debate(
         judge_spec,
         fill_prompt(JUDGE_SYSTEM_PROMPT, {"original_question": query, "n": rounds}),
         keys,
-        "Judge",
+        "Synthesizer",
         max(temp - 0.05, 0.0),
     )
 
@@ -486,7 +489,7 @@ def run_debate(
             break
 
         progress.progress((round_number - 1) / rounds)
-        status.markdown(f"Running round {round_number} of {rounds} ...")
+        status.markdown(f"Running collaborative round {round_number} of {rounds} ...")
 
         responses: List[Dict[str, object]] = []
         for role, spec, name, agent in roster:
@@ -551,16 +554,16 @@ def run_debate(
     final_answer = "No final synthesis generated."
 
     if total_cost < budget and not fatal_failure:
-        status.markdown("Judge is synthesizing final answer ...")
+        status.markdown("Synthesizer is generating final answer ...")
         judge_query = (
-            f"Original question: {query}\n\nDebate transcript:\n{context}\n\n"
+            f"Original question: {query}\n\nCollaborative transcript:\n{context}\n\n"
             "Deliver one final answer with rationale, uncertainties, and practical next actions."
         )
         verdict = judge.generate_response(query=judge_query, context="")
         judge_is_error = str(verdict.content).strip().lower().startswith("error:")
         total_cost += verdict.cost
         judge_record = {
-            "agent": "Judge",
+            "agent": "Synthesizer",
             "role": "judge",
             "provider": PROVIDER_LABELS.get(judge_spec.provider, judge_spec.provider),
             "model": judge_spec.model_id,
@@ -574,15 +577,15 @@ def run_debate(
         }
         final_answer = verdict.content
         if judge_is_error:
-            warnings.append(f"Judge failed: {trim_text(str(verdict.content), 180)}")
+            warnings.append(f"Synthesizer failed: {trim_text(str(verdict.content), 180)}")
     else:
         if fatal_failure:
-            final_answer = "Debate stopped because all active agents returned errors. Check provider keys, model ids, or network access."
+            final_answer = "Synthesis stopped because all active agents returned errors. Check provider keys, model ids, or network access."
         else:
             stop_reason = f"Stopped after rounds: budget cap ${budget:.2f} exhausted."
 
     progress.progress(1.0)
-    status.markdown("Debate run complete.")
+    status.markdown("Collaboration run complete.")
 
     return {
         "query": query,
@@ -663,8 +666,8 @@ def main() -> None:
     st.markdown(
         """
         <div class="hero">
-            <h1>DebateMind Studio</h1>
-            <p>Fancy multi-agent interface with flexible model routing, API key health checks, and real debate analytics.</p>
+            <h1>SynapseForge Studio</h1>
+            <p>Collaborative multi-model intelligence engine. Fusing models for superior insights.</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -673,7 +676,7 @@ def main() -> None:
     with st.sidebar:
         provider_sidebar()
         st.markdown("### Run Controls")
-        st.session_state["max_rounds"] = st.slider("Debate rounds", 1, 8, int(st.session_state["max_rounds"]))
+        st.session_state["max_rounds"] = st.slider("Collaboration rounds", 1, 8, int(st.session_state["max_rounds"]))
         st.session_state["budget"] = st.slider("Budget cap (USD)", 0.05, 10.0, float(st.session_state["budget"]), 0.05)
         st.session_state["temp"] = st.slider("Temperature", 0.0, 1.0, float(st.session_state["temp"]), 0.05)
         st.session_state["consensus_threshold"] = st.slider(
@@ -705,17 +708,17 @@ def main() -> None:
     if custom_errors:
         st.warning("Custom model issues:\n- " + "\n- ".join(custom_errors))
 
-    tab_studio, tab_feed, tab_metrics = st.tabs(["Studio", "Debate Feed", "Analytics"])
+    tab_studio, tab_feed, tab_metrics = st.tabs(["Studio", "Synthesis Feed", "Analytics"])
 
     with tab_studio:
         left, right = st.columns([1.3, 1.0], gap="large")
         with left:
             st.markdown("### Research Brief")
             st.session_state["query"] = st.text_area(
-                "Question to debate",
+                "Question to analyze",
                 value=st.session_state["query"],
                 height=180,
-                placeholder="Example: Which strategy is best for deploying AI copilots safely across a mid-size company in 2026?",
+                placeholder="Example: What are the most promising approaches to achieving AGI safety, and how should research priorities be allocated over the next 5 years?",
             )
             preset_options = list(PRESETS.keys())
             preset_index = (
@@ -731,16 +734,16 @@ def main() -> None:
 
         with right:
             st.markdown("### Agent Roles")
-            st.multiselect("Core debaters", opts["debater"], key="debaters")
-            st.selectbox("Judge", opts["judge"], key="judge")
-            st.selectbox("Fact checker", ["None"] + opts["fact_checker"], key="fact_checker")
-            st.selectbox("Devils advocate", ["None"] + opts["adversarial"], key="adversarial")
+            st.multiselect("Core Contributors", opts["debater"], key="debaters")
+            st.selectbox("Synthesizer / Judge", opts["judge"], key="judge")
+            st.selectbox("Verifier (Fact Checker)", ["None"] + opts["fact_checker"], key="fact_checker")
+            st.selectbox("Stress Tester (Adversarial)", ["None"] + opts["adversarial"], key="adversarial")
 
         picked = selected_specs(lookup)
         lineup_agents = len(picked["debaters"]) + 1 + int(bool(picked.get("fact_checker"))) + int(bool(picked.get("adversarial")))
         preview_cols = st.columns(3)
         preview_cols[0].metric("Lineup Size", lineup_agents)
-        preview_cols[1].metric("Debaters", len(picked["debaters"]))
+        preview_cols[1].metric("Contributors", len(picked["debaters"]))
         provider_mix = provider_mix_labels(picked)
         provider_count = len(provider_mix.split(", ")) if provider_mix != "none" else 0
         preview_cols[2].metric("Providers", provider_count)
@@ -759,12 +762,12 @@ def main() -> None:
         action_cols = st.columns([3, 1])
         with action_cols[0]:
             run_clicked = button_full_width(
-                "Run Debate Session",
+                "Run Collaborative Synthesis",
                 type="primary",
                 disabled=disabled,
             )
         with action_cols[1]:
-            clear_clicked = button_full_width("Clear Run")
+            clear_clicked = button_full_width("Clear")
         if clear_clicked:
             st.session_state["run"] = None
             st.rerun()
@@ -803,7 +806,7 @@ def main() -> None:
             st.download_button(
                 "Download Run JSON",
                 data=json.dumps(run, indent=2),
-                file_name="debate_run.json",
+                file_name="synapse_run.json",
                 mime="application/json",
             )
 
@@ -811,7 +814,7 @@ def main() -> None:
         run = normalize_run_payload(st.session_state.get("run"))
         st.session_state["run"] = run
         if not run:
-            st.info("Run a debate from Studio to view transcript.")
+            st.info("Run a synthesis from Studio to view transcript.")
         else:
             st.markdown("### Round Transcript")
             for round_log in run.get("rounds", []):
@@ -822,14 +825,14 @@ def main() -> None:
                     for record in round_log.get("responses", []):
                         render_record(record, compact=False)
             if run.get("judge"):
-                st.markdown("### Judge Output")
+                st.markdown("### Synthesizer Output")
                 render_record(run["judge"], compact=False)
 
     with tab_metrics:
         run = normalize_run_payload(st.session_state.get("run"))
         st.session_state["run"] = run
         if not run:
-            st.info("Run a debate to unlock analytics.")
+            st.info("Run a synthesis to unlock analytics.")
             return
 
         if pd is None or px is None:
