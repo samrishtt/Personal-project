@@ -1,37 +1,49 @@
-# DebateMind: Consensus Multi-Agent System
+# DebateMind Studio
 
-This project allows multiple AI agents (LLMs) to debate answers to complex questions, leading to a more robust and accurate final answer through consensus and peer review.
+DebateMind Studio is a Streamlit app that runs a structured multi-agent debate, then synthesizes a final answer with a judge model.
 
-## Features
--   **Multi-Agent Debate**: Several agents debate each other's answers.
--   **Peer Review**: Agents critique and refine answers.
--   **Consensus Synthesis**: A final agent synthesizes the best parts of the debate.
--   **Modular Backend**: Supports OpenAI (GPT), Google Gemini, Anthropic Claude, and Local LLMs (Ollama).
+## What Changed
+- Upgraded UI with a modern studio layout, richer live transcript, and analytics dashboard.
+- Added provider key health checks (session keys + `.env` fallback).
+- Added a centralized model catalog and custom model routing.
+- Added cost-aware round execution with early-stop consensus logic.
+- Replaced placeholder analytics with real token/cost/confidence charts.
 
-## Setup
-1.  **Install Dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
+## Quick Start
+1. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+2. Create `.env` (optional, you can also enter keys in sidebar):
+```env
+OPENAI_API_KEY=...
+GOOGLE_API_KEY=...
+ANTHROPIC_API_KEY=...
+```
+3. Run:
+```bash
+streamlit run app.py
+```
 
-2.  **API Keys**:
-    -   Create a `.env` file and add your API keys:
-        -   `OPENAI_API_KEY=sk-...`
-        -   `GOOGLE_API_KEY=AIza...`
-        -   `ANTHROPIC_API_KEY=sk-ant...` (Optional)
+## How To Use
+1. Open `Studio` tab.
+2. Enter a research question.
+3. Choose a preset or manually configure debaters, judge, fact-checker, and adversarial agent.
+4. Set rounds, budget, and early-stop threshold.
+5. Run the debate and inspect live rounds, final synthesis, and analytics.
 
-3.  **Run the App**:
-    ```bash
-    streamlit run app.py
-    ```
+## Custom Model Access
+In sidebar -> `Custom Models`, add one model per line:
+```text
+provider:model_id|Optional Label
+```
+Examples:
+```text
+openai:gpt-4.1-mini|OpenAI GPT 4.1 Mini
+anthropic:claude-3-5-sonnet-latest
+```
 
-## Usage
-1.  Open the web interface.
-2.  Enter your question.
-3.  Select the desired model backend.
-4.  Watch the agents debate and refine the answer!
-
-## Future Roadmap
--   Add more sophisticated agent personalization (roles: Critic, Optimist, Fact-Checker).
--   Implement retrieval-augmented generation (RAG) for better factual accuracy.
--   Support for local open-source models (Llama 3, Mistral) via Ollama.
+## Notes
+- Mock agents can be used for a zero-cost demo.
+- Cost estimates use the pricing table in `debate_app/core/pricing.py`.
+- Models not listed in pricing still run, but estimated cost may show as `$0.000000`.

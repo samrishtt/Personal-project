@@ -1,407 +1,657 @@
-import streamlit as st
-import os
-import pandas as pd
+
+from __future__ import annotations
+
+import json
+import re
 import time
-import sys
+from itertools import combinations
+from typing import Dict, List, Optional, Sequence, Tuple
+
+import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
+import streamlit as st
+from dotenv import load_dotenv
 
-# Add the parent directory to sys.path to allow imports
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from debate_app.agents.providers import (
+    MODEL_CATALOG,
+    PROVIDER_ENV_KEYS,
+    PROVIDER_LABELS,
+    ModelSpec,
+    build_agent_from_spec,
+    build_custom_model_spec,
+    provider_has_key,
+)
+from debate_app.core.prompts import (
+    ADVERSARIAL_SYSTEM_PROMPT,
+    DEBATER_SYSTEM_PROMPT,
+    FACT_CHECKER_SYSTEM_PROMPT,
+    JUDGE_SYSTEM_PROMPT,
+)
 
-from debate_app.core.base import DebateManager, Agent
-from debate_app.agents.providers import OpenAIAgent, GeminiAgent, AnthropicAgent, MockAgent
-from debate_app.core.prompts import DEBATER_SYSTEM_PROMPT, FACT_CHECKER_SYSTEM_PROMPT, ADVERSARIAL_SYSTEM_PROMPT, JUDGE_SYSTEM_PROMPT
+load_dotenv()
+st.set_page_config(page_title="DebateMind Studio", page_icon="DM", layout="wide")
 
-# --- 🎨 Custom CSS for Adorable & Research-Grade UI ---
-st.set_page_config(page_title="DebateMind: Consensus Intelligence", layout="wide", page_icon="🧠")
+PRESETS = {
+    "Balanced": {
+        "debaters": ["OpenAI GPT-4o mini", "Google Gemini 1.5 Flash"],
+        "judge": "OpenAI GPT-4o",
+        "fact_checker": "None",
+        "adversarial": "None",
+    },
+    "Rigorous": {
+        "debaters": ["OpenAI GPT-4o", "Anthropic Claude 3 Opus", "Google Gemini 1.5 Pro"],
+        "judge": "OpenAI GPT-4o",
+        "fact_checker": "Anthropic Claude 3 Haiku",
+        "adversarial": "OpenAI GPT-4o mini",
+    },
+    "Demo": {
+        "debaters": ["Mock Skeptic", "Mock Optimist"],
+        "judge": "Mock Judge",
+        "fact_checker": "Mock Fact Checker",
+        "adversarial": "Mock Challenger",
+    },
+}
 
-st.markdown("""
-<style>
-    /* Global Color Variables */
-    :root {
-        --primary-blue: #1e3a8a;
-        --secondary-emerald: #10b981;
-        --accent-amber: #f59e0b;
-        --bg-white: #ffffff;
-        --text-dark: #1f2937;
-    }
-    
-    /* Main Background & Fonts */
-    .stApp {
-        background-color: #f8fafc;
-        font-family: 'Inter', 'Segoe UI', sans-serif;
-    }
-    
-    /* Headers */
-    h1 {
-        color: #1e3a8a;
-        font-weight: 800;
-        font-size: 2.5rem;
-    }
-    h2, h3 {
-        color: #334155;
-        font-weight: 600;
-    }
-    
-    /* Buttons */
-    .stButton>button {
-        background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
-        color: white;
-        border-radius: 8px;
-        font-weight: 600;
-        border: none;
-        padding: 0.75rem 1.5rem;
-        box-shadow: 0 4px 6px rgba(30, 58, 138, 0.2);
-        transition: all 0.2s ease;
-    }
-    .stButton>button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(30, 58, 138, 0.3);
-    }
-    
-    /* Hero Section */
-    .hero-container {
-        border-radius: 20px;
-        overflow: hidden;
-        margin-bottom: 2rem;
-        position: relative;
-        height: 250px;
-    }
-    .hero-image {
-        width: 100%;
-        height: 100%;
-        object-fit: crop;
-        filter: brightness(0.7);
-    }
-    .hero-text {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        text-align: center;
-        width: 80%;
-    }
-    .hero-text h1 {
-        color: white !important;
-        text-shadow: 2px 2px 10px rgba(0,0,0,0.5);
-        margin: 0;
-    }
-    .hero-text p {
-        color: #e2e8f0;
-        font-size: 1.1rem;
-        margin-top: 10px;
-    }
-    
-    /* Agent Avatars */
-    .agent-avatar {
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 2px solid #1e3a8a;
-        margin-right: 15px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
-    
-    /* Response Header */
-    .agent-header {
-        display: flex;
-        align-items: center;
-        margin-bottom: 10px;
-    }
-    
-    /* Sidebar */
-    section[data-testid="stSidebar"] {
-        background-color: #ffffff;
-        border-right: 1px solid #e2e8f0;
-    }
-    
-    /* Cards (Simulated with containers) */
-    div.element-container {
-        border-radius: 12px;
-    }
-    
-    /* Chat/Response Cards */
-    .response-card {
-        background-color: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 1.5rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        margin-bottom: 1rem;
-    }
-    
-    /* Status Badges */
-    .badge {
-        display: inline-block;
-        padding: 0.25rem 0.5rem;
-        border-radius: 9999px;
-        font-size: 0.75rem;
-        font-weight: 700;
-        text-transform: uppercase;
-    }
-    
-    .badge-blue { background-color: #dbeafe; color: #1e40af; }
-    .badge-green { background-color: #d1fae5; color: #065f46; }
-    .badge-amber { background-color: #fef3c7; color: #92400e; }
-    
-</style>
-""", unsafe_allow_html=True)
+CUSTOM_MODEL_REGEX = re.compile(
+    r"^(openai|google|anthropic|mock)\s*:\s*([^|]+?)(?:\s*\|\s*(.+))?$",
+    re.IGNORECASE,
+)
 
-# --- 🧠 Header Section ---
-st.markdown("""
-<div class="hero-container">
-    <img src="https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=2000" class="hero-image">
-    <div class="hero-text">
-        <h1>🧠 DebateMind</h1>
-        <p>Multi-Agent Consensus Intelligence</p>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-st.markdown("---")
 
-# --- ⚙️ Sidebar: Logic & Config ---
-with st.sidebar:
-    st.header("⚙️ Configuration")
-    
-    # 1. API Keys (Expandable)
-    with st.expander("🔑 AI Provider Keys", expanded=True):
-        openai_key = st.text_input("OpenAI API Key", type="password", key="openai_key", help="Required for GPT-4/3.5")
-        google_key = st.text_input("Google AI Key", type="password", key="google_key", help="Required for Gemini")
-        anthropic_key = st.text_input("Anthropic Key", type="password", key="anthropic_key", help="Required for Claude")
-    
-    st.divider()
-    
-    # 2. Constraints
-    st.subheader("Budget & Limits")
-    cost_cols = st.columns(2)
-    with cost_cols[0]:
-        max_cost = st.number_input("Max Cost ($)", 0.1, 10.0, 0.5, step=0.1)
-    with cost_cols[1]:
-        max_rounds = st.number_input("Rounds", 1, 10, 2)
-        
-    st.divider()
-    st.info("💡 Tip: Use 'Mock Agents' for free testing/demos.")
+def inject_css() -> None:
+    st.markdown(
+        """
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+            .stApp {
+                background:
+                    radial-gradient(circle at 8% -15%, #c9f2e6 0%, transparent 32%),
+                    radial-gradient(circle at 92% -20%, #ffe1c4 0%, transparent 35%),
+                    linear-gradient(140deg, #f8f5ee 0%, #edf3f8 100%);
+                font-family: 'Space Grotesk', sans-serif;
+                color: #132a42;
+            }
+            .hero {
+                border-radius: 20px;
+                padding: 1.4rem 1.5rem;
+                border: 1px solid rgba(14, 34, 56, 0.2);
+                background: linear-gradient(130deg, #183758 0%, #21678d 60%, #2b9a89 100%);
+                box-shadow: 0 14px 30px rgba(12, 31, 50, 0.22);
+                margin-bottom: 1rem;
+            }
+            .hero h1 { margin: 0; color: #f4fbff; }
+            .hero p { margin: 0.35rem 0 0 0; color: #d7ebf9; }
+            .panel {
+                border: 1px solid rgba(16, 34, 56, 0.16);
+                background: rgba(255, 255, 255, 0.86);
+                border-radius: 14px;
+                padding: 0.75rem 0.9rem;
+                margin-bottom: 0.55rem;
+                backdrop-filter: blur(4px);
+            }
+            .status-good { color: #116b45; font-weight: 700; }
+            .status-bad { color: #9b1f1f; font-weight: 700; }
+            .mono { font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; }
+            .answer {
+                border: 1px solid rgba(16, 34, 56, 0.2);
+                border-left: 6px solid #1a7d67;
+                border-radius: 12px;
+                padding: 0.9rem;
+                background: rgba(255, 255, 255, 0.9);
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
-# --- 🎭 Main Layout: Tabs for Setup vs Debate ---
-tab_setup, tab_arena, tab_analytics = st.tabs(["🎭 Agent Setup", "🎪 Debate Arena", "📊 Research Metrics"])
 
-# ==============================================================================
-# TAB 1: AGENT SETUP (Simulated Drag & Drop)
-# ==============================================================================
-with tab_setup:
-    st.subheader("Assign Agent Roles")
-    st.markdown("Select which models will fill specific roles in the debate.")
-    
-    col_debaters, col_specialists = st.columns(2)
-    
-    ALL_MODELS = [
-        "OpenAI GPT-4o", "OpenAI GPT-4o-mini", "OpenAI GPT-3.5 Turbo",
-        "Google Gemini 1.5 Pro", "Google Gemini 1.5 Flash",
-        "Anthropic Claude 3 Opus", "Anthropic Claude 3 Haiku",
-        "Mock Skeptic", "Mock Optimist", "Mock Fact-Checker"
-    ]
-    
-    with col_debaters:
-        st.markdown("#### 🗣️ Core Debaters")
-        st.caption("These agents propose and critique arguments.")
-        selected_debaters = st.multiselect(
-            "Select Debater Models", 
-            ALL_MODELS, 
-            default=["Mock Skeptic", "Mock Optimist"]
+def init_state() -> None:
+    defaults = {
+        "keys": {"openai": "", "google": "", "anthropic": ""},
+        "custom_models": "",
+        "preset": "Balanced",
+        "debaters": PRESETS["Balanced"]["debaters"],
+        "judge": PRESETS["Balanced"]["judge"],
+        "fact_checker": PRESETS["Balanced"]["fact_checker"],
+        "adversarial": PRESETS["Balanced"]["adversarial"],
+        "query": "",
+        "max_rounds": 3,
+        "budget": 0.75,
+        "temp": 0.2,
+        "consensus_threshold": 0.55,
+        "delay_ms": 0,
+        "run": None,
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+
+def parse_custom_models(raw_text: str) -> Tuple[List[ModelSpec], List[str]]:
+    specs: List[ModelSpec] = []
+    errors: List[str] = []
+    for idx, raw in enumerate((raw_text or "").splitlines(), start=1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        match = CUSTOM_MODEL_REGEX.match(line)
+        if not match:
+            errors.append(f"Line {idx}: use provider:model_id|Optional Label")
+            continue
+        provider, model_id, label = match.groups()
+        try:
+            specs.append(
+                build_custom_model_spec(
+                    provider=provider,
+                    model_id=model_id.strip(),
+                    label=label.strip() if label else None,
+                    role_hints=("debater", "judge", "fact_checker", "adversarial"),
+                )
+            )
+        except ValueError as exc:
+            errors.append(f"Line {idx}: {exc}")
+    return specs, errors
+
+
+def merged_specs(custom_specs: Sequence[ModelSpec]) -> List[ModelSpec]:
+    base = list(MODEL_CATALOG)
+    used = {spec.label for spec in base}
+    for spec in custom_specs:
+        current = spec
+        if current.label in used:
+            current = ModelSpec(
+                label=f"{spec.label} [custom]",
+                provider=spec.provider,
+                model_id=spec.model_id,
+                role_hints=spec.role_hints,
+            )
+        base.append(current)
+        used.add(current.label)
+    return base
+
+
+def role_options(specs: Sequence[ModelSpec], role: str) -> List[str]:
+    return [spec.label for spec in specs if role in spec.role_hints]
+
+
+def consensus_score(texts: Sequence[str]) -> float:
+    token_sets = [set(re.findall(r"[a-zA-Z]{4,}", text.lower())[:120]) for text in texts if text]
+    if len(token_sets) < 2:
+        return 0.0
+    scores: List[float] = []
+    for left, right in combinations(token_sets, 2):
+        union = left | right
+        if union:
+            scores.append(len(left & right) / len(union))
+    return float(sum(scores) / len(scores)) if scores else 0.0
+
+
+def trim_text(value: str, limit: int = 650) -> str:
+    text = (value or "").strip()
+    if len(text) <= limit:
+        return text
+    return text[:limit].rstrip() + " ..."
+
+def sanitize_state(opts: Dict[str, List[str]]) -> None:
+    base_debaters = [m for m in PRESETS["Balanced"]["debaters"] if m in opts["debater"]]
+    if not base_debaters and opts["debater"]:
+        base_debaters = opts["debater"][:2]
+
+    current_debaters = [m for m in st.session_state.get("debaters", []) if m in opts["debater"]]
+    st.session_state["debaters"] = current_debaters or base_debaters
+
+    if st.session_state.get("judge") not in opts["judge"] and opts["judge"]:
+        st.session_state["judge"] = opts["judge"][0]
+
+    for key, role in [("fact_checker", "fact_checker"), ("adversarial", "adversarial")]:
+        valid = ["None"] + opts[role]
+        if st.session_state.get(key) not in valid:
+            st.session_state[key] = "None"
+
+
+def apply_preset(name: str, opts: Dict[str, List[str]]) -> None:
+    preset = PRESETS[name]
+    st.session_state["debaters"] = [m for m in preset["debaters"] if m in opts["debater"]]
+    st.session_state["judge"] = preset["judge"] if preset["judge"] in opts["judge"] else opts["judge"][0]
+    st.session_state["fact_checker"] = (
+        preset["fact_checker"] if preset["fact_checker"] in opts["fact_checker"] else "None"
+    )
+    st.session_state["adversarial"] = (
+        preset["adversarial"] if preset["adversarial"] in opts["adversarial"] else "None"
+    )
+
+
+def selected_specs(spec_lookup: Dict[str, ModelSpec]) -> Dict[str, object]:
+    debaters = [spec_lookup[m] for m in st.session_state["debaters"] if m in spec_lookup]
+    judge = spec_lookup.get(st.session_state["judge"])
+    fact = spec_lookup.get(st.session_state["fact_checker"]) if st.session_state["fact_checker"] != "None" else None
+    adversarial = spec_lookup.get(st.session_state["adversarial"]) if st.session_state["adversarial"] != "None" else None
+    return {"debaters": debaters, "judge": judge, "fact_checker": fact, "adversarial": adversarial}
+
+
+def render_record(record: Dict[str, object], compact: bool) -> None:
+    st.markdown(
+        (
+            f"<div class='panel'><strong>{record['agent']}</strong><br>"
+            f"Role: {record['role']} | Provider: {record['provider']} | Model: {record['model']}</div>"
+        ),
+        unsafe_allow_html=True,
+    )
+    cols = st.columns(4)
+    cols[0].metric("Confidence", f"{record['confidence'] * 100:.0f}%")
+    cols[1].metric("Cost", f"${record['cost']:.5f}")
+    cols[2].metric("Input", str(record['tokens_input']))
+    cols[3].metric("Output", str(record['tokens_output']))
+    body = trim_text(record["content"]) if compact else record["content"]
+    st.markdown(body)
+    if compact and len(record["content"]) > len(body):
+        with st.popover("Full response"):
+            st.markdown(record["content"])
+
+
+def run_debate(
+    query: str,
+    specs: Dict[str, object],
+    keys: Dict[str, str],
+    rounds: int,
+    budget: float,
+    temp: float,
+    consensus_threshold: float,
+    delay_seconds: float,
+) -> Dict[str, object]:
+    roster: List[Tuple[str, ModelSpec, str, object]] = []
+    for i, spec in enumerate(specs["debaters"], start=1):
+        roster.append(
+            (
+                "debater",
+                spec,
+                f"Debater {i}",
+                build_agent_from_spec(spec, DEBATER_SYSTEM_PROMPT, keys, f"Debater {i}", temp),
+            )
         )
 
-    with col_specialists:
-        st.markdown("#### 🛡️ Specialists")
-        st.caption("Specialized roles for verification and synthesis.")
-        judge_model = st.selectbox("⚖️ Judge (Synthesizer)", ALL_MODELS, index=0 if "OpenAI GPT-4o" in ALL_MODELS else 7)
-        fact_checker_model = st.selectbox("✅ Fact-Checker", ["None"] + ALL_MODELS, index=0)
-        adversarial_model = st.selectbox("⚔️ Devil's Advocate", ["None"] + ALL_MODELS, index=0)
+    if specs.get("fact_checker"):
+        spec = specs["fact_checker"]
+        roster.append(
+            (
+                "fact_checker",
+                spec,
+                "Fact Checker",
+                build_agent_from_spec(
+                    spec,
+                    FACT_CHECKER_SYSTEM_PROMPT.format(round_number="{round}", agent_name="multiple agents"),
+                    keys,
+                    "Fact Checker",
+                    temp,
+                ),
+            )
+        )
 
-    st.divider()
-    user_query = st.text_area("Research Question", placeholder="e.g., What are the socio-economic impacts of universal basic income?", height=120)
-    
-    start_btn = st.button("🚀 Initiate Debate Sequence", use_container_width=True)
+    if specs.get("adversarial"):
+        spec = specs["adversarial"]
+        roster.append(
+            (
+                "adversarial",
+                spec,
+                "Devils Advocate",
+                build_agent_from_spec(
+                    spec,
+                    ADVERSARIAL_SYSTEM_PROMPT.format(round_number="{round}", agent_name="consensus", topic=query),
+                    keys,
+                    "Devils Advocate",
+                    temp,
+                ),
+            )
+        )
 
-# Helper to create agent
-def build_agent(name_selection, role_prompt, keys):
-    name = name_selection.split(" (")[0]
-    
-    # Provider Images
-    avatar_map = {
-        "OpenAI": "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&q=80&w=300",
-        "Google": "https://images.unsplash.com/photo-1633412802994-5c058f151b66?auto=format&fit=crop&q=80&w=300",
-        "Anthropic": "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?auto=format&fit=crop&q=80&w=300",
-        "Mock": "https://images.unsplash.com/photo-1531746790731-6c087fecd05a?auto=format&fit=crop&q=80&w=300"
-    }
-    
-    # Provider Logic
-    agent = None
-    provider = "Mock"
-    if "OpenAI" in name_selection:
-        provider = "OpenAI"
-        model = "gpt-4o" if "GPT-4o" in name_selection and "mini" not in name_selection else ("gpt-4o-mini" if "mini" in name_selection else "gpt-3.5-turbo")
-        agent = OpenAIAgent(name=name, model_name=model, api_key=keys.get("openai_key"), system_prompt=role_prompt)
-    elif "Gemini" in name_selection:
-        provider = "Google"
-        model = "gemini-1.5-pro" if "Pro" in name_selection else "gemini-1.5-flash"
-        agent = GeminiAgent(name=name, model_name=model, api_key=keys.get("google_key"), system_prompt=role_prompt)
-    elif "Anthropic" in name_selection:
-        provider = "Anthropic"
-        model = "claude-3-opus-20240229" if "Opus" in name_selection else "claude-3-haiku-20240307"
-        agent = AnthropicAgent(name=name, model_name=model, api_key=keys.get("anthropic_key"), system_prompt=role_prompt)
-    elif "Mock" in name_selection:
-        provider = "Mock"
-        behavior = "skeptical" if "Skeptic" in name_selection else "optimistic"
-        if "Fact" in name_selection: behavior = "fact-checking"
-        agent = MockAgent(name=name, behavior=behavior)
-    
-    if agent:
-        # Attach avatar for UI rendering
-        agent.avatar_url = avatar_map.get(provider, avatar_map["Mock"])
-    return agent
+    judge_spec = specs["judge"]
+    judge = build_agent_from_spec(
+        judge_spec,
+        JUDGE_SYSTEM_PROMPT.format(original_question=query, n=rounds),
+        keys,
+        "Judge",
+        max(temp - 0.05, 0.0),
+    )
 
-# ==============================================================================
-# TAB 2: DEBATE ARENA
-# ==============================================================================
-with tab_arena:
-    if "debate_active" not in st.session_state:
-        st.session_state.debate_active = False
-        st.session_state.history = []
-        st.session_state.final_verdict = None
-        st.session_state.costs = 0.0
+    progress = st.progress(0.0)
+    status = st.empty()
+    round_view = st.container()
 
-    if start_btn and user_query:
-        st.session_state.debate_active = True
-        st.session_state.query = user_query
-        
-        # Build Agents
-        keys = {"openai_key": openai_key, "google_key": google_key, "anthropic_key": anthropic_key}
-        
-        # 1. Debaters
-        agents = []
-        for d in selected_debaters:
-            agents.append(build_agent(d, DEBATER_SYSTEM_PROMPT.format(per_agent_token_cap=2000), keys))
-        
-        # 2. Specialists
-        if fact_checker_model != "None":
-            agents.append(build_agent(fact_checker_model, FACT_CHECKER_SYSTEM_PROMPT.format(round_number="{round}", agent_name="{agent}"), keys))
-            
-        if adversarial_model != "None":
-            agents.append(build_agent(adversarial_model, ADVERSARIAL_SYSTEM_PROMPT.format(round_number="{round}", agent_name="{agent}", topic=user_query), keys))
-            
-        # 3. Judge
-        judge = build_agent(judge_model, JUDGE_SYSTEM_PROMPT.format(original_question=user_query, n="{rounds}"), keys)
-        
-        # Filter None
-        agents = [a for a in agents if a]
-        
-        if not agents:
-            st.error("No valid agents configured.")
-            st.stop()
-            
-        manager = DebateManager(agents, judge_agent=judge, rounds=max_rounds, cost_limit=max_cost)
-        
-        # --- LIVE EXECUTION ---
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-        
-        results_container = st.container()
-        
-        current_context = ""
-        total_cost = 0.0
-        
-        with results_container:
-            for round_num in range(max_rounds):
-                progress_bar.progress((round_num) / max_rounds)
-                status_text.markdown(f"**🔄 Round {round_num + 1} in progress...**")
-                
-                with st.expander(f"Round {round_num + 1}", expanded=True):
-                    cols = st.columns(len(agents))
-                    round_txt = []
-                    
-                    for i, agent in enumerate(agents):
-                        with cols[i]:
-                            st.caption(f"{agent.name} is thinking...")
-                            try:
-                                resp = agent.generate_response(user_query, current_context)
-                                
-                                # Enhanced Card UI
-                                avatar_html = f'<img src="{agent.avatar_url}" class="agent-avatar">' if hasattr(agent, "avatar_url") else ""
-                                st.markdown(f"""
-                                <div style="background:#fff; padding:20px; border-radius:15px; border:1px solid #e2e8f0; height: 100%; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-                                    <div class="agent-header">
-                                        {avatar_html}
-                                        <div>
-                                            <h4 style="margin:0; color:#1e3a8a;">{agent.name}</h4>
-                                            <p style="font-size:12px; color:#64748b; margin:0;">Confidence: {int(resp.confidence*100)}% | ${resp.cost:.4f}</p>
-                                        </div>
-                                    </div>
-                                    <hr style="margin:10px 0; border:0; border-top:1px solid #f1f5f9;">
-                                    <div style="font-size:14px; color:#334155; line-height:1.6;">{resp.content[:250]}...</div>
-                                </div>
-                                """, unsafe_allow_html=True)
-                                
-                                with st.popover("Read Full"):
-                                    st.markdown(resp.content)
+    logs: List[Dict[str, object]] = []
+    context = ""
+    total_cost = 0.0
+    stop_reason = "Configured rounds completed."
 
-                                total_cost += resp.cost
-                                round_txt.append(f"{agent.name}: {resp.content}")
-                            except Exception as e:
-                                st.error(f"Error: {e}")
-                    
-                    current_context += f"\nRound {round_num + 1}:\n" + "\n".join(round_txt) + "\n"
-        
-        # Final Verification
-        progress_bar.progress(1.0)
-        status_text.markdown("**⚖️ Judge is synthesizing final verdict...**")
-        
-        with st.spinner("Synthesizing..."):
-            final_resp = judge.generate_response(f"Review debate on '{user_query}':\n{current_context}", context="")
-            total_cost += final_resp.cost
-            st.session_state.final_verdict = final_resp.content
-            st.session_state.costs = total_cost
-            st.session_state.history = current_context # Store simple history for now
+    for round_number in range(1, rounds + 1):
+        if total_cost >= budget:
+            stop_reason = f"Stopped before round {round_number}: budget reached."
+            break
 
-        st.success("Debate Complete!")
-        st.balloons()
-        
-        # Display Final Verdict
-        st.markdown("### 🏆 Final Consensus")
-        st.markdown(f"""
-        <div style="background:#f0f9ff; padding:25px; border-radius:12px; border-left: 5px solid #1e3a8a;">
-            {st.session_state.final_verdict}
-        </div>
-        """, unsafe_allow_html=True)
+        progress.progress((round_number - 1) / rounds)
+        status.markdown(f"Running round {round_number} of {rounds} ...")
 
-# ==============================================================================
-# TAB 3: ANALYTICS (Plotly)
-# ==============================================================================
-with tab_analytics:
-    st.subheader("📊 Debate Metrics")
-    
-    if "costs" in st.session_state and st.session_state.costs > 0:
-        metric_col1, metric_col2, metric_col3 = st.columns(3)
-        with metric_col1:
-            st.metric("Total Cost", f"${st.session_state.costs:.4f}")
-        with metric_col2:
-            st.metric("Agents Involved", len(selected_debaters) + (1 if judge_model else 0))
-        with metric_col3:
-            st.metric("ROI (Est.)", "High", delta="24% better quality")
-            
-        # Fake data for visual if strictly mock, or real if we tracked it better
-        # For this demo, generating a sample chart
-        
-        data = pd.DataFrame({
-            "Agent": selected_debaters + ([fact_checker_model] if fact_checker_model != "None" else []),
-            "Tokens": [random.randint(500, 2000) for _ in range(len(selected_debaters) + (1 if fact_checker_model != "None" else 0))],
-            "Confidence": [random.uniform(0.7, 0.95) for _ in range(len(selected_debaters) + (1 if fact_checker_model != "None" else 0))]
-        })
-        
-        st.markdown("#### 📉 Token Usage by Agent")
-        fig = px.bar(data, x="Agent", y="Tokens", color="Agent", title="Token Consumption")
-        st.plotly_chart(fig, use_container_width=True)
-        
+        responses: List[Dict[str, object]] = []
+        for role, spec, name, agent in roster:
+            if total_cost >= budget:
+                stop_reason = f"Budget reached in round {round_number}."
+                break
+            result = agent.generate_response(query=query, context=context)
+            record = {
+                "round": round_number,
+                "agent": name,
+                "role": role,
+                "provider": PROVIDER_LABELS.get(spec.provider, spec.provider),
+                "model": spec.model_id,
+                "confidence": result.confidence,
+                "cost": result.cost,
+                "tokens_input": result.token_usage.get("input", 0),
+                "tokens_output": result.token_usage.get("output", 0),
+                "tokens_total": result.token_usage.get("total", 0),
+                "content": result.content,
+            }
+            responses.append(record)
+            total_cost += result.cost
+            if delay_seconds > 0:
+                time.sleep(delay_seconds)
+
+        if not responses:
+            break
+
+        round_cost = float(sum(r["cost"] for r in responses))
+        debater_texts = [r["content"] for r in responses if r["role"] == "debater"]
+        round_consensus = consensus_score(debater_texts)
+        logs.append({"round": round_number, "responses": responses, "round_cost": round_cost, "consensus": round_consensus})
+
+        context_block = "\n".join(f"{r['agent']} ({r['role']}): {r['content']}" for r in responses)
+        context = (context + f"\n\nRound {round_number}\n" + context_block).strip()
+        if len(context) > 18000:
+            context = context[-18000:]
+
+        with round_view.expander(
+            f"Round {round_number} | cost ${round_cost:.5f} | consensus {round_consensus:.0%}",
+            expanded=True,
+        ):
+            for record in responses:
+                render_record(record, compact=True)
+
+        if round_number >= 2 and round_consensus >= consensus_threshold:
+            stop_reason = f"Stopped early at round {round_number}: consensus {round_consensus:.0%}."
+            break
+
+    judge_record: Optional[Dict[str, object]] = None
+    final_answer = "No final synthesis generated."
+
+    if total_cost < budget:
+        status.markdown("Judge is synthesizing final answer ...")
+        judge_query = (
+            f"Original question: {query}\n\nDebate transcript:\n{context}\n\n"
+            "Deliver one final answer with rationale, uncertainties, and practical next actions."
+        )
+        verdict = judge.generate_response(query=judge_query, context="")
+        total_cost += verdict.cost
+        judge_record = {
+            "agent": "Judge",
+            "role": "judge",
+            "provider": PROVIDER_LABELS.get(judge_spec.provider, judge_spec.provider),
+            "model": judge_spec.model_id,
+            "confidence": verdict.confidence,
+            "cost": verdict.cost,
+            "tokens_input": verdict.token_usage.get("input", 0),
+            "tokens_output": verdict.token_usage.get("output", 0),
+            "tokens_total": verdict.token_usage.get("total", 0),
+            "content": verdict.content,
+        }
+        final_answer = verdict.content
     else:
-        st.info("Run a debate to generate analytics.")
+        stop_reason = f"Stopped after rounds: budget cap ${budget:.2f} exhausted."
+
+    progress.progress(1.0)
+    status.markdown("Debate run complete.")
+
+    return {
+        "query": query,
+        "rounds_requested": rounds,
+        "rounds_completed": len(logs),
+        "rounds": logs,
+        "judge": judge_record,
+        "total_cost": round(total_cost, 6),
+        "stopped_reason": stop_reason,
+        "final_answer": final_answer,
+    }
+
+
+def metrics_frame(run: Dict[str, object]) -> pd.DataFrame:
+    rows: List[Dict[str, object]] = []
+    for round_log in run.get("rounds", []):
+        rows.extend(round_log.get("responses", []))
+    if run.get("judge"):
+        judge_row = dict(run["judge"])
+        judge_row["round"] = run.get("rounds_completed", 0) + 1
+        rows.append(judge_row)
+    return pd.DataFrame(rows)
+
+
+def provider_sidebar() -> None:
+    st.markdown("### Provider Access")
+    keys = st.session_state["keys"]
+    openai_key = st.text_input("OpenAI API key", type="password", value=keys.get("openai", ""))
+    google_key = st.text_input("Google API key", type="password", value=keys.get("google", ""))
+    anthropic_key = st.text_input("Anthropic API key", type="password", value=keys.get("anthropic", ""))
+    st.session_state["keys"] = {
+        "openai": openai_key.strip(),
+        "google": google_key.strip(),
+        "anthropic": anthropic_key.strip(),
+    }
+
+    st.markdown("<div class='panel'>", unsafe_allow_html=True)
+    st.markdown("**Key Health**")
+    for provider in ["openai", "google", "anthropic"]:
+        ready = provider_has_key(provider, st.session_state["keys"])
+        css = "status-good" if ready else "status-bad"
+        status = "ready" if ready else "missing"
+        st.markdown(
+            f"{PROVIDER_LABELS[provider]} (`{PROVIDER_ENV_KEYS[provider]}`): <span class='{css}'>{status}</span>",
+            unsafe_allow_html=True,
+        )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def main() -> None:
+    inject_css()
+    init_state()
+
+    st.markdown(
+        """
+        <div class="hero">
+            <h1>DebateMind Studio</h1>
+            <p>Fancy multi-agent interface with flexible model routing, API key health checks, and real debate analytics.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    with st.sidebar:
+        provider_sidebar()
+        st.markdown("### Run Controls")
+        st.session_state["max_rounds"] = st.slider("Debate rounds", 1, 8, int(st.session_state["max_rounds"]))
+        st.session_state["budget"] = st.slider("Budget cap (USD)", 0.05, 10.0, float(st.session_state["budget"]), 0.05)
+        st.session_state["temp"] = st.slider("Temperature", 0.0, 1.0, float(st.session_state["temp"]), 0.05)
+        st.session_state["consensus_threshold"] = st.slider(
+            "Early-stop consensus", 0.2, 0.9, float(st.session_state["consensus_threshold"]), 0.05
+        )
+        st.session_state["delay_ms"] = st.slider("Visual response delay (ms)", 0, 1200, int(st.session_state["delay_ms"]), 100)
+
+        st.markdown("### Custom Models")
+        st.session_state["custom_models"] = st.text_area(
+            "provider:model_id|Optional Label",
+            value=st.session_state["custom_models"],
+            height=130,
+            help="Example: openai:gpt-4.1-mini|OpenAI GPT 4.1 Mini",
+        )
+        st.markdown("<div class='mono'>One model per line. Leave empty for built-in catalog.</div>", unsafe_allow_html=True)
+
+    custom_specs, custom_errors = parse_custom_models(st.session_state["custom_models"])
+    specs = merged_specs(custom_specs)
+    lookup = {spec.label: spec for spec in specs}
+
+    opts = {
+        "debater": role_options(specs, "debater"),
+        "judge": role_options(specs, "judge"),
+        "fact_checker": role_options(specs, "fact_checker"),
+        "adversarial": role_options(specs, "adversarial"),
+    }
+    sanitize_state(opts)
+
+    if custom_errors:
+        st.warning("Custom model issues:\n- " + "\n- ".join(custom_errors))
+
+    tab_studio, tab_feed, tab_metrics = st.tabs(["Studio", "Debate Feed", "Analytics"])
+
+    with tab_studio:
+        left, right = st.columns([1.3, 1.0], gap="large")
+        with left:
+            st.markdown("### Research Brief")
+            st.session_state["query"] = st.text_area(
+                "Question to debate",
+                value=st.session_state["query"],
+                height=180,
+                placeholder="Example: Which strategy is best for deploying AI copilots safely across a mid-size company in 2026?",
+            )
+            preset_name = st.selectbox("Lineup preset", list(PRESETS.keys()), index=list(PRESETS.keys()).index(st.session_state["preset"]))
+            st.session_state["preset"] = preset_name
+            if st.button("Apply preset", use_container_width=True):
+                apply_preset(preset_name, opts)
+                st.rerun()
+
+        with right:
+            st.markdown("### Agent Roles")
+            st.multiselect("Core debaters", opts["debater"], key="debaters")
+            st.selectbox("Judge", opts["judge"], key="judge")
+            st.selectbox("Fact checker", ["None"] + opts["fact_checker"], key="fact_checker")
+            st.selectbox("Devils advocate", ["None"] + opts["adversarial"], key="adversarial")
+
+        picked = selected_specs(lookup)
+        missing = sorted(
+            provider
+            for provider in {
+                *[s.provider for s in picked["debaters"]],
+                *( [picked["judge"].provider] if picked.get("judge") else [] ),
+                *( [picked["fact_checker"].provider] if picked.get("fact_checker") else [] ),
+                *( [picked["adversarial"].provider] if picked.get("adversarial") else [] ),
+            }
+            if provider != "mock" and not provider_has_key(provider, st.session_state["keys"])
+        )
+
+        if missing:
+            st.error("Missing API keys for: " + ", ".join(PROVIDER_LABELS[p] for p in missing))
+
+        disabled = bool(missing) or not st.session_state["query"].strip() or not picked["debaters"] or not picked["judge"]
+        if st.button("Run Debate Session", type="primary", use_container_width=True, disabled=disabled):
+            st.session_state["run"] = run_debate(
+                query=st.session_state["query"].strip(),
+                specs=picked,
+                keys=st.session_state["keys"],
+                rounds=int(st.session_state["max_rounds"]),
+                budget=float(st.session_state["budget"]),
+                temp=float(st.session_state["temp"]),
+                consensus_threshold=float(st.session_state["consensus_threshold"]),
+                delay_seconds=float(st.session_state["delay_ms"]) / 1000.0,
+            )
+
+        run = st.session_state.get("run")
+        if run:
+            st.markdown("### Final Synthesis")
+            st.markdown(
+                (
+                    "<div class='panel'>"
+                    f"<strong>Rounds:</strong> {run['rounds_completed']} / {run['rounds_requested']}<br>"
+                    f"<strong>Total Cost:</strong> ${run['total_cost']:.6f}<br>"
+                    f"<strong>Status:</strong> {run['stopped_reason']}"
+                    "</div>"
+                ),
+                unsafe_allow_html=True,
+            )
+            st.markdown("<div class='answer'>", unsafe_allow_html=True)
+            st.markdown(run["final_answer"])
+            st.markdown("</div>", unsafe_allow_html=True)
+            st.download_button(
+                "Download Run JSON",
+                data=json.dumps(run, indent=2),
+                file_name="debate_run.json",
+                mime="application/json",
+            )
+
+    with tab_feed:
+        run = st.session_state.get("run")
+        if not run:
+            st.info("Run a debate from Studio to view transcript.")
+        else:
+            st.markdown("### Round Transcript")
+            for round_log in run.get("rounds", []):
+                with st.expander(
+                    f"Round {round_log['round']} | cost ${round_log['round_cost']:.5f} | consensus {round_log['consensus']:.0%}",
+                    expanded=False,
+                ):
+                    for record in round_log.get("responses", []):
+                        render_record(record, compact=False)
+            if run.get("judge"):
+                st.markdown("### Judge Output")
+                render_record(run["judge"], compact=False)
+
+    with tab_metrics:
+        run = st.session_state.get("run")
+        if not run:
+            st.info("Run a debate to unlock analytics.")
+            return
+
+        df = metrics_frame(run)
+        if df.empty:
+            st.warning("No metrics to display.")
+            return
+
+        df["confidence_pct"] = (df["confidence"].fillna(0.0) * 100).round(1)
+        total_tokens = int(df["tokens_total"].fillna(0).sum())
+        avg_conf = float(df["confidence"].fillna(0.0).mean())
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Total Cost", f"${run['total_cost']:.6f}")
+        m2.metric("Total Tokens", f"{total_tokens:,}")
+        m3.metric("Avg Confidence", f"{avg_conf * 100:.1f}%")
+        m4.metric("Agents", str(df["agent"].nunique()))
+
+        round_cost = pd.DataFrame([
+            {"round": r["round"], "cost": r["round_cost"]}
+            for r in run.get("rounds", [])
+        ])
+
+        c1, c2 = st.columns(2)
+        with c1:
+            if not round_cost.empty:
+                fig_cost = px.line(round_cost, x="round", y="cost", markers=True, title="Cost by Round")
+                fig_cost.update_layout(height=320)
+                st.plotly_chart(fig_cost, use_container_width=True)
+            fig_tokens = px.bar(df, x="agent", y="tokens_total", color="role", title="Token Usage by Agent")
+            fig_tokens.update_layout(height=360)
+            st.plotly_chart(fig_tokens, use_container_width=True)
+
+        with c2:
+            fig_conf = px.scatter(
+                df,
+                x="round",
+                y="confidence_pct",
+                color="role",
+                size="tokens_total",
+                hover_data=["agent", "provider", "model"],
+                title="Confidence Trajectory",
+            )
+            fig_conf.update_layout(height=320)
+            st.plotly_chart(fig_conf, use_container_width=True)
+
+            provider_cost = df.groupby("provider", as_index=False)["cost"].sum().sort_values("cost", ascending=False)
+            fig_share = px.pie(provider_cost, values="cost", names="provider", title="Cost Share by Provider")
+            fig_share.update_layout(height=360)
+            st.plotly_chart(fig_share, use_container_width=True)
+
+
+if __name__ == "__main__":
+    main()
