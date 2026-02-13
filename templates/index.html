@@ -4,21 +4,110 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SynapseForge — Multi-Model Collaborative Intelligence</title>
-  <meta name="description" content="SynapseForge fuses multiple AI models into a single collaborative intelligence engine. Integrate OpenAI, Google Gemini, and Anthropic Claude to produce superior answers.">
+  <meta name="description" content="SynapseForge fuses multiple AI models into a single collaborative intelligence engine.">
   <link rel="stylesheet" href="/static/styles.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
 </head>
 <body>
+<!-- 🎬 ANIMATED MOTION BACKGROUND -->
+<div class="animated-bg">
+  <div class="bg-particle particle-1"></div>
+  <div class="bg-particle particle-2"></div>
+  <div class="bg-particle particle-3"></div>
+  <div class="bg-particle particle-4"></div>
+  <div class="bg-particle particle-5"></div>
+  <div class="gradient-orb orb-1"></div>
+  <div class="gradient-orb orb-2"></div>
+  <div class="gradient-orb orb-3"></div>
+  <div class="lines-grid"></div>
+</div>
+
 <div class="app-container">
 
-  <!-- ═══ Hero ═══ -->
+  <!-- Hero Header -->
   <header class="hero">
     <div class="hero-badge"><span class="dot"></span> Multi-Model Collaborative AI</div>
     <h1>SynapseForge</h1>
     <p>Fuse multiple AI models into one collaborative intelligence. Each model contributes unique strengths — together they deliver answers no single model can match.</p>
   </header>
 
-  <!-- ═══ Tabs ═══ -->
+  <!-- 🎓 PROJECT SELECTION SECTION -->
+  <div class="projects-section">
+    <h2 style="text-align: center; margin-bottom: 24px; font-size: 1.3rem; color: var(--text-primary);">Select Your Project</h2>
+    <div class="projects-grid">
+      <!-- MIT Application Project -->
+      <div class="project-card selected" id="project-mit" data-project="mit">
+        <div class="project-header">
+          <span class="project-icon">🎓</span>
+          <span class="project-label">Academic</span>
+        </div>
+        <h3>MIT Application Project</h3>
+        <p>Collaborative analysis for academic research papers, thesis reviews, and university applications. Get diverse perspectives from multiple expert agents.</p>
+        <div class="project-meta">
+          <div class="meta-item">
+            <span class="meta-label">Best For:</span>
+            <span class="meta-value">Research & Analysis</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Recommended:</span>
+            <span class="meta-value">5-7 Models</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Researcher Project -->
+      <div class="project-card" id="project-researcher" data-project="researcher">
+        <div class="project-header">
+          <span class="project-icon">🔬</span>
+          <span class="project-label">Research Grade</span>
+        </div>
+        <h3>AI Researcher Project</h3>
+        <p>Advanced reasoning engine for AI safety, prompt engineering, and cutting-edge research. Maximum collaborative depth with 10-model capacity.</p>
+        <div class="project-meta">
+          <div class="meta-item">
+            <span class="meta-label">Best For:</span>
+            <span class="meta-value">Advanced Research</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Recommended:</span>
+            <span class="meta-value">8-10 Models</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 💰 COST CALCULATOR PANEL -->
+  <div class="cost-panel">
+    <div class="cost-header">
+      <h3>💰 Cost Calculator — 10 Model Participation</h3>
+      <p style="margin-top: 8px; color: var(--text-secondary); font-size: 0.9rem;">Estimated API cost for running 10 models simultaneously on your query</p>
+    </div>
+    <div class="cost-grid">
+      <div class="cost-item">
+        <div class="cost-label">Premium Models</div>
+        <div class="cost-value">$2.50</div>
+        <div class="cost-detail">GPT-4o, Claude 3 Opus</div>
+      </div>
+      <div class="cost-item">
+        <div class="cost-label">Mid-Tier Models</div>
+        <div class="cost-value">$1.20</div>
+        <div class="cost-detail">GPT-4o Mini, Gemini Pro</div>
+      </div>
+      <div class="cost-item">
+        <div class="cost-label">Fast Models</div>
+        <div class="cost-value">$0.30</div>
+        <div class="cost-detail">Gemini Flash, Claude Haiku</div>
+      </div>
+      <div class="cost-item highlight">
+        <div class="cost-label">Estimated Total</div>
+        <div class="cost-value" id="total-cost">$4.00</div>
+        <div class="cost-detail">For 3 rounds of debate</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation Tabs -->
   <nav class="nav-tabs" id="mainNav">
     <button class="nav-tab active" data-tab="studio">⚡ Studio</button>
     <button class="nav-tab" data-tab="feed">📜 Synthesis Feed</button>
@@ -168,7 +257,7 @@ Example: What are the most promising approaches to achieving AGI safety, and how
 
   <footer class="footer">
     SynapseForge — Multi-Model Collaborative Intelligence Engine<br>
-    <span style="opacity:0.6">Built by Samrisht · MIT Application Project · 2026</span>
+    <span style="opacity:0.6" id="footer-project">Built by Samrisht · MIT Application Project · 2026</span>
   </footer>
 </div>
 

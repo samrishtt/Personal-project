@@ -1,6 +1,76 @@
 // SynapseForge — Frontend Logic
 // ──────────────────────────────
 
+// ═════════════════════════════════════════════════════════════════
+// 🎓 PROJECT SELECTION & 💰 COST CALCULATOR
+// ═════════════════════════════════════════════════════════════════
+
+// Project Selection Handler
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.project-card').forEach(card => {
+    card.addEventListener('click', function() {
+      const project = this.dataset.project;
+      
+      // Remove selected class from all cards
+      document.querySelectorAll('.project-card').forEach(c => c.classList.remove('selected'));
+      
+      // Add selected class to clicked card
+      this.classList.add('selected');
+      
+      // Update footer
+      const projectName = project === 'mit' ? 'MIT Application Project' : 'AI Researcher Project';
+      document.getElementById('footer-project').textContent = `Built by Samrisht · ${projectName} · 2026`;
+      
+      // Store selected project
+      localStorage.setItem('selectedProject', project);
+      
+      console.log(`✓ Project selected: ${project}`);
+    });
+  });
+  
+  // Load saved project selection
+  const savedProject = localStorage.getItem('selectedProject') || 'mit';
+  const projectCard = document.querySelector(`[data-project="${savedProject}"]`);
+  if (projectCard) {
+    projectCard.click();
+  }
+});
+
+// Cost Calculator (10 models)
+function updateCostEstimate() {
+  // Base costs per round
+  const costEstimates = {
+    premium: 2.50,     // GPT-4o, Claude Opus (2 models)
+    midtier: 1.20,     // GPT-4o Mini, Gemini Pro (4 models)
+    fast: 0.30,        // Gemini Flash, Claude Haiku (4 models)
+  };
+  
+  const rounds = parseInt(document.getElementById('cfg-rounds')?.value) || 3;
+  const totalCost = (costEstimates.premium + costEstimates.midtier + costEstimates.fast) * rounds;
+  
+  // Update cost display if element exists
+  const totalCostEl = document.getElementById('total-cost');
+  const costDetail = document.querySelector('.cost-item.highlight .cost-detail');
+  
+  if (totalCostEl) {
+    totalCostEl.textContent = `$${totalCost.toFixed(2)}`;
+  }
+  if (costDetail) {
+    costDetail.textContent = `For ${rounds} ${rounds === 1 ? 'round' : 'rounds'} of debate`;
+  }
+}
+
+// Update cost when rounds change
+window.addEventListener('load', function() {
+  const roundsSlider = document.getElementById('cfg-rounds');
+  if (roundsSlider) {
+    roundsSlider.addEventListener('input', updateCostEstimate);
+    updateCostEstimate();
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════
+
 const MODEL_CATALOG = [
     { label: "OpenAI GPT-4o", provider: "openai", model_id: "gpt-4o", roles: ["debater", "judge", "fact_checker", "adversarial"] },
     { label: "OpenAI GPT-4o mini", provider: "openai", model_id: "gpt-4o-mini", roles: ["debater", "fact_checker", "adversarial"] },
@@ -84,7 +154,7 @@ function bindEvents() {
     });
 
     // Sliders
-    document.getElementById("cfg-rounds").addEventListener("input", e => { document.getElementById("val-rounds").textContent = e.target.value; updateUI(); });
+    document.getElementById("cfg-rounds").addEventListener("input", e => { document.getElementById("val-rounds").textContent = e.target.value; updateCostEstimate(); updateUI(); });
     document.getElementById("cfg-budget").addEventListener("input", e => { document.getElementById("val-budget").textContent = "$" + (e.target.value / 100).toFixed(2); });
     document.getElementById("cfg-temp").addEventListener("input", e => { document.getElementById("val-temp").textContent = (e.target.value / 100).toFixed(2); });
     document.getElementById("cfg-consensus").addEventListener("input", e => { document.getElementById("val-consensus").textContent = e.target.value + "%"; });
