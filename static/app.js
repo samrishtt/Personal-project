@@ -2,39 +2,8 @@
 // ──────────────────────────────
 
 // ═════════════════════════════════════════════════════════════════
-// 🎓 PROJECT SELECTION & 💰 COST CALCULATOR
+// 💰 COST CALCULATOR FOR 10-MODEL PARTICIPATION
 // ═════════════════════════════════════════════════════════════════
-
-// Project Selection Handler
-document.addEventListener('DOMContentLoaded', function() {
-  document.querySelectorAll('.project-card').forEach(card => {
-    card.addEventListener('click', function() {
-      const project = this.dataset.project;
-      
-      // Remove selected class from all cards
-      document.querySelectorAll('.project-card').forEach(c => c.classList.remove('selected'));
-      
-      // Add selected class to clicked card
-      this.classList.add('selected');
-      
-      // Update footer
-      const projectName = project === 'mit' ? 'MIT Application Project' : 'AI Researcher Project';
-      document.getElementById('footer-project').textContent = `Built by Samrisht · ${projectName} · 2026`;
-      
-      // Store selected project
-      localStorage.setItem('selectedProject', project);
-      
-      console.log(`✓ Project selected: ${project}`);
-    });
-  });
-  
-  // Load saved project selection
-  const savedProject = localStorage.getItem('selectedProject') || 'mit';
-  const projectCard = document.querySelector(`[data-project="${savedProject}"]`);
-  if (projectCard) {
-    projectCard.click();
-  }
-});
 
 // Cost Calculator (10 models)
 function updateCostEstimate() {
