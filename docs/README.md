@@ -1,6 +1,6 @@
 # SynapseForge — Multi-Model Collaborative Intelligence Engine
 
-> **MIT Application Project** by Samrisht
+> **Personal Project** by Samrisht
 
 SynapseForge fuses multiple AI models into a single collaborative intelligence engine. Unlike debate-style systems where models argue against each other, SynapseForge makes models **work together** — each contributing unique strengths to produce answers that are demonstrably superior to any single model.
 
@@ -95,4 +95,4 @@ SynapseForge/
 
 ---
 
-*Built for MIT Application · 2026*
+*Built for User· 2026*
