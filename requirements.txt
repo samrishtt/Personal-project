@@ -4,9 +4,13 @@ langchain-openai
 langchain-google-genai
 langchain-anthropic
 flask
+flask-cors
+flask-socketio
+python-socketio
 streamlit
 python-dotenv
 tiktoken
 pandas
 altair
 plotly
+requests

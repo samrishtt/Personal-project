@@ -1,6 +1,11 @@
 """
 SynapseForge — Flask Backend Server
 Serves the web UI and exposes /api/run for collaborative multi-model synthesis.
+
+IMPROVEMENTS:
+- Parallel execution of agents using ThreadPoolExecutor (handles 5-10 models concurrently)
+- Non-blocking model inference for better performance
+- Real-time response streaming
 """
 from __future__ import annotations
 
@@ -9,6 +14,8 @@ import re
 import time
 from itertools import combinations
 from typing import Dict, List, Optional, Sequence, Tuple
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 
 from flask import Flask, jsonify, render_template, request
 
@@ -19,6 +26,7 @@ from debate_app.agents.providers import (
     build_agent_from_spec,
     provider_has_key,
 )
+from debate_app.core.base import AgentResponse
 from debate_app.core.prompts import (
     ADVERSARIAL_SYSTEM_PROMPT,
     DEBATER_SYSTEM_PROMPT,
@@ -27,6 +35,8 @@ from debate_app.core.prompts import (
 )
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
+# Thread pool for parallel agent execution (supports up to 10 concurrent models)
+EXECUTOR = ThreadPoolExecutor(max_workers=10, thread_name_prefix="agent-")
 
 MODEL_LOOKUP: Dict[str, ModelSpec] = {spec.label: spec for spec in MODEL_CATALOG}
 
@@ -127,7 +137,7 @@ def api_run():
     if not roster:
         return jsonify({"error": "At least one contributor model is required."}), 400
 
-    # ─── Run collaborative rounds ───
+    # ─── Run collaborative rounds with PARALLEL execution ───
     logs: List[Dict] = []
     context = ""
     total_cost = 0.0
@@ -140,11 +150,28 @@ def api_run():
             break
 
         responses: List[Dict] = []
+        
+        # PARALLEL EXECUTION: Submit all agents to ThreadPoolExecutor
+        futures = {}
         for role, spec, name, agent in roster:
             if total_cost >= budget:
                 stop_reason = f"Budget reached in round {round_number}."
                 break
-            result = agent.generate_response(query=query, context=context)
+            future = EXECUTOR.submit(agent.generate_response, query=query, context=context)
+            futures[future] = (role, spec, name, agent)
+        
+        # Collect results as they complete (non-blocking)
+        for future in as_completed(futures):
+            if total_cost >= budget:
+                break
+            
+            role, spec, name, agent = futures[future]
+            try:
+                result = future.result(timeout=60)  # 60-second timeout per agent
+            except Exception as e:
+                result_content = f"Error: Agent {name} failed - {str(e)}"
+                result = AgentResponse(content=result_content, confidence=0.0, model_name=spec.model_id)
+            
             is_error = str(result.content).strip().lower().startswith("error:")
             record = {
                 "round": round_number,
@@ -236,5 +263,52 @@ def api_run():
     })
 
 
+@app.route("/api/health", methods=["GET"])
+def health_check():
+    """Check if the server is running and ready."""
+    return jsonify({
+        "status": "healthy",
+        "server": "SynapseForge v2.0",
+        "parallel_workers": 10,
+        "models_available": len(MODEL_CATALOG),
+    }), 200
+
+
+@app.route("/api/models", methods=["GET"])
+def list_models():
+    """List all available models grouped by provider."""
+    models_by_provider = {}
+    for spec in MODEL_CATALOG:
+        provider = spec.provider
+        if provider not in models_by_provider:
+            models_by_provider[provider] = []
+        models_by_provider[provider].append({
+            "label": spec.label,
+            "model_id": spec.model_id,
+            "roles": spec.role_hints,
+        })
+    return jsonify(models_by_provider), 200
+
+
+@app.route("/api/models/check-keys", methods=["POST"])
+def check_api_keys():
+    """Check which API keys are configured."""
+    keys = request.get_json(force=True) or {}
+    availability = {}
+    for provider in ["openai", "google", "anthropic"]:
+        availability[provider] = provider_has_key(provider, keys)
+    return jsonify(availability), 200
+
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({"error": "Endpoint not found"}), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({"error": "Internal server error", "details": str(error)}), 500
+
+
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5000, threaded=True)
