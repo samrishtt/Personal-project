@@ -108,10 +108,10 @@ def api_run():
     if not query:
         return jsonify({"error": "Query is required."}), 400
 
-    debater_labels = data.get("debaters", [])
-    judge_label = data.get("judge", "")
-    fact_label = data.get("fact_checker") or ""
-    adv_label = data.get("adversarial") or ""
+    debater_items = data.get("debaters", [])
+    judge_item = data.get("judge", "")
+    fact_item = data.get("fact_checker", "")
+    adv_item = data.get("adversarial", "")
     rounds = max(1, min(int(data.get("rounds", 3)), 8))
     budget = max(0.01, float(data.get("budget", 0.75)))
     temp = max(0.0, min(float(data.get("temp", 0.2)), 1.0))
@@ -122,35 +122,51 @@ def api_run():
     roster: List[Tuple[str, ModelSpec, str, object]] = []
     warnings: List[str] = []
 
-    for i, label in enumerate(debater_labels, start=1):
-        spec = MODEL_LOOKUP.get(label)
+    def _resolve_spec(item: object) -> Optional[ModelSpec]:
+        if not item:
+            return None
+        if isinstance(item, dict):
+            from debate_app.agents.providers import build_custom_model_spec
+            try:
+                return build_custom_model_spec(
+                    provider=item.get("provider", "openai"),
+                    model_id=item.get("model_id", ""),
+                    label=item.get("label") or f"Custom {item.get('model_id', '')}",
+                )
+            except Exception as e:
+                warnings.append(str(e))
+                return None
+        return MODEL_LOOKUP.get(str(item))
+
+    for i, item in enumerate(debater_items, start=1):
+        spec = _resolve_spec(item)
         if not spec:
-            warnings.append(f"Unknown model: {label}")
+            warnings.append(f"Unknown or invalid contributor model: {item}")
             continue
         agent = build_agent_from_spec(spec, DEBATER_SYSTEM_PROMPT, keys, f"Contributor {i}", temp)
         roster.append(("debater", spec, f"Contributor {i}", agent))
 
-    if fact_label and fact_label in MODEL_LOOKUP:
-        spec = MODEL_LOOKUP[fact_label]
+    fact_spec = _resolve_spec(fact_item)
+    if fact_spec:
         agent = build_agent_from_spec(
-            spec,
+            fact_spec,
             fill_prompt(FACT_CHECKER_SYSTEM_PROMPT, {"round_number": "{round}", "agent_name": "all agents"}),
             keys, "Verifier", temp,
         )
-        roster.append(("fact_checker", spec, "Verifier", agent))
+        roster.append(("fact_checker", fact_spec, "Verifier", agent))
 
-    if adv_label and adv_label in MODEL_LOOKUP:
-        spec = MODEL_LOOKUP[adv_label]
+    adv_spec = _resolve_spec(adv_item)
+    if adv_spec:
         agent = build_agent_from_spec(
-            spec,
+            adv_spec,
             fill_prompt(ADVERSARIAL_SYSTEM_PROMPT, {"round_number": "{round}", "agent_name": "consensus", "topic": query}),
             keys, "Stress Tester", temp,
         )
-        roster.append(("adversarial", spec, "Stress Tester", agent))
+        roster.append(("adversarial", adv_spec, "Stress Tester", agent))
 
-    judge_spec = MODEL_LOOKUP.get(judge_label)
+    judge_spec = _resolve_spec(judge_item)
     if not judge_spec:
-        return jsonify({"error": f"Unknown judge model: {judge_label}"}), 400
+        return jsonify({"error": f"Unknown judge model: {judge_item}"}), 400
 
     judge = build_agent_from_spec(
         judge_spec,

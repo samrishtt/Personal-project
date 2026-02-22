@@ -12,6 +12,8 @@ PROVIDER_LABELS = {
     "openai": "OpenAI",
     "google": "Google",
     "anthropic": "Anthropic",
+    "openrouter": "OpenRouter",
+    "grok": "xAI (Grok)",
     "mock": "Mock",
 }
 
@@ -19,6 +21,8 @@ PROVIDER_ENV_KEYS = {
     "openai": "OPENAI_API_KEY",
     "google": "GOOGLE_API_KEY",
     "anthropic": "ANTHROPIC_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
+    "grok": "XAI_API_KEY",
     "mock": "",
 }
 
@@ -75,6 +79,30 @@ MODEL_CATALOG: List[ModelSpec] = [
         role_hints=("debater", "fact_checker", "adversarial"),
     ),
     ModelSpec(
+        label="xAI Grok 2",
+        provider="grok",
+        model_id="grok-2",
+        role_hints=("debater", "judge", "fact_checker", "adversarial"),
+    ),
+    ModelSpec(
+        label="xAI Grok Beta",
+        provider="grok",
+        model_id="grok-beta",
+        role_hints=("debater",),
+    ),
+    ModelSpec(
+        label="OpenRouter Auto",
+        provider="openrouter",
+        model_id="openrouter/auto",
+        role_hints=("debater", "judge", "fact_checker", "adversarial"),
+    ),
+    ModelSpec(
+        label="OpenRouter DeepSeek V3",
+        provider="openrouter",
+        model_id="deepseek/deepseek-chat",
+        role_hints=("debater", "fact_checker", "adversarial"),
+    ),
+    ModelSpec(
         label="Mock Skeptic",
         provider="mock",
         model_id="mock-skeptic",
@@ -117,6 +145,9 @@ def normalize_provider(provider: str) -> str:
         "openai": "openai",
         "google": "google",
         "anthropic": "anthropic",
+        "openrouter": "openrouter",
+        "grok": "grok",
+        "xai": "grok",
         "mock": "mock",
     }
     return aliases.get(normalized, normalized)
@@ -249,6 +280,7 @@ class OpenAIAgent(Agent):
         name: str = "GPT-4o",
         model_name: str = "gpt-4o",
         api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
         system_prompt: str = "",
         temperature: float = 0.2,
     ):
@@ -260,8 +292,10 @@ class OpenAIAgent(Agent):
         if self.api_key:
             try:
                 from langchain_openai import ChatOpenAI
-
-                self.model = ChatOpenAI(model=model_name, api_key=self.api_key, temperature=temperature)
+                kwargs = {"model": model_name, "api_key": self.api_key, "temperature": temperature}
+                if base_url:
+                    kwargs["base_url"] = base_url
+                self.model = ChatOpenAI(**kwargs)
             except Exception as exc:
                 self.model = None
                 self.init_error = str(exc)
@@ -508,6 +542,26 @@ def build_agent_from_spec(
             name=agent_name,
             model_name=spec.model_id,
             api_key=resolve_provider_key("anthropic", api_keys),
+            system_prompt=system_prompt,
+            temperature=temperature,
+        )
+
+    if spec.provider == "openrouter":
+        return OpenAIAgent(
+            name=agent_name,
+            model_name=spec.model_id,
+            api_key=resolve_provider_key("openrouter", api_keys),
+            base_url="https://openrouter.ai/api/v1",
+            system_prompt=system_prompt,
+            temperature=temperature,
+        )
+
+    if spec.provider == "grok":
+        return OpenAIAgent(
+            name=agent_name,
+            model_name=spec.model_id,
+            api_key=resolve_provider_key("grok", api_keys),
+            base_url="https://api.x.ai/v1",
             system_prompt=system_prompt,
             temperature=temperature,
         )

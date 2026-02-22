@@ -27,6 +27,9 @@ const MODEL_CATALOG = [
   { label: "Google Gemini 1.5 Flash", provider: "google", model_id: "gemini-1.5-flash", roles: ["debater", "fact_checker", "adversarial"] },
   { label: "Anthropic Claude 3 Opus", provider: "anthropic", model_id: "claude-3-opus-20240229", roles: ["debater", "judge", "fact_checker", "adversarial"] },
   { label: "Anthropic Claude 3 Haiku", provider: "anthropic", model_id: "claude-3-haiku-20240307", roles: ["debater", "fact_checker", "adversarial"] },
+  { label: "xAI Grok 2", provider: "grok", model_id: "grok-2", roles: ["debater", "judge", "fact_checker", "adversarial"] },
+  { label: "xAI Grok Beta", provider: "grok", model_id: "grok-beta", roles: ["debater"] },
+  { label: "OpenRouter Auto", provider: "openrouter", model_id: "openrouter/auto", roles: ["debater", "judge", "fact_checker", "adversarial"] },
   { label: "Mock Skeptic", provider: "mock", model_id: "mock-skeptic", roles: ["debater"] },
   { label: "Mock Optimist", provider: "mock", model_id: "mock-optimist", roles: ["debater"] },
   { label: "Mock Fact Checker", provider: "mock", model_id: "mock-fact-checker", roles: ["fact_checker"] },
@@ -138,6 +141,49 @@ function bindEvents() {
     inp.addEventListener("input", () => updateKeyStatus());
   });
 
+  // Custom Builder Toggle
+  const btnToggleCustom = document.getElementById("btn-toggle-custom");
+  const customBuilder = document.getElementById("custom-builder");
+  if (btnToggleCustom && customBuilder) {
+    btnToggleCustom.addEventListener("click", () => {
+      if (customBuilder.style.display === "none") {
+        customBuilder.style.display = "block";
+      } else {
+        customBuilder.style.display = "none";
+      }
+    });
+  }
+
+  // Custom Agent Add
+  const btnAddCustom = document.getElementById("btn-add-custom");
+  if (btnAddCustom) {
+    btnAddCustom.addEventListener("click", () => {
+      const provider = document.getElementById("custom-provider").value;
+      const modelId = document.getElementById("custom-model-id").value.trim();
+      let label = document.getElementById("custom-model-label").value.trim();
+
+      if (!modelId) return showToast("error", "Model ID is required");
+      if (!label) label = `Custom ${modelId}`;
+
+      // Add custom model spec to catalog
+      MODEL_CATALOG.push({ label, provider, model_id: modelId, roles: ["debater", "judge", "fact_checker", "adversarial"], isCustom: true });
+
+      // Auto-select it as debater
+      selectedDebaters.add(label);
+
+      // Rebuild UI
+      buildModelChips();
+      buildRoleSelects();
+      updateUI();
+
+      // Clear inputs
+      document.getElementById("custom-model-id").value = "";
+      document.getElementById("custom-model-label").value = "";
+      customBuilder.style.display = "none";
+      showToast("info", `Custom Model added: ${label}`);
+    });
+  }
+
   // Sliders
   document.getElementById("cfg-rounds").addEventListener("input", e => {
     document.getElementById("val-rounds").textContent = e.target.value;
@@ -174,13 +220,15 @@ function bindEvents() {
 }
 
 function updateKeyStatus() {
-  ["openai", "google", "anthropic"].forEach(p => {
-    const val = document.getElementById("key-" + p).value.trim();
+  ["openai", "google", "anthropic", "openrouter", "grok"].forEach(p => {
+    const elInp = document.getElementById("key-" + p);
+    if (!elInp) return;
+    const val = elInp.value.trim();
     const el = document.getElementById("status-" + p);
+    if (!el) return;
     if (val) { el.textContent = "Ready"; el.className = "key-status ready"; }
     else { el.textContent = "Missing"; el.className = "key-status missing"; }
   });
-  updateUI();
 }
 
 // ─── Preset ───
@@ -247,20 +295,28 @@ async function runSynthesis() {
   loadingText.textContent = "Models collaborating...";
   loadingSub.textContent = "Sending query to selected AI models";
 
+  const resolveSpec = (label) => {
+    if (!label) return "";
+    const m = MODEL_CATALOG.find(x => x.label === label);
+    return (m && m.isCustom) ? { label: m.label, provider: m.provider, model_id: m.model_id } : label;
+  };
+
   const payload = {
     query: document.getElementById("query-input").value.trim(),
-    debaters: [...selectedDebaters],
-    judge: document.getElementById("select-judge").value,
-    fact_checker: document.getElementById("select-fact").value || null,
-    adversarial: document.getElementById("select-adversarial").value || null,
+    debaters: [...selectedDebaters].map(resolveSpec),
+    judge: resolveSpec(document.getElementById("select-judge").value),
+    fact_checker: resolveSpec(document.getElementById("select-fact").value) || null,
+    adversarial: resolveSpec(document.getElementById("select-adversarial").value) || null,
     rounds: parseInt(document.getElementById("cfg-rounds").value),
-    budget: parseInt(document.getElementById("cfg-budget").value) / 100,
-    temp: parseInt(document.getElementById("cfg-temp").value) / 100,
-    consensus_threshold: parseInt(document.getElementById("cfg-consensus").value) / 100,
+    budget: parseFloat(document.getElementById("cfg-budget").value) / 100,
+    temp: parseFloat(document.getElementById("cfg-temp").value) / 100,
+    consensus_threshold: parseFloat(document.getElementById("cfg-consensus").value) / 100,
     keys: {
       openai: document.getElementById("key-openai").value.trim(),
       google: document.getElementById("key-google").value.trim(),
       anthropic: document.getElementById("key-anthropic").value.trim(),
+      openrouter: document.getElementById("key-openrouter") ? document.getElementById("key-openrouter").value.trim() : "",
+      grok: document.getElementById("key-grok") ? document.getElementById("key-grok").value.trim() : "",
     }
   };
 

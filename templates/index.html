@@ -1,305 +1,377 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SynapseForge — Multi-Model Collaborative Intelligence + SAM-AI</title>
-  <meta name="description" content="SynapseForge fuses multiple AI models into a single collaborative intelligence engine, powered by SAM-AI neuro-symbolic analysis.">
+  <meta name="description"
+    content="SynapseForge fuses multiple AI models into a single collaborative intelligence engine, powered by SAM-AI neuro-symbolic analysis.">
   <link rel="stylesheet" href="/static/styles.css">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
 </head>
+
 <body>
-<!-- 🎬 ANIMATED MOTION BACKGROUND -->
-<div class="animated-bg">
-  <div class="bg-particle particle-1"></div>
-  <div class="bg-particle particle-2"></div>
-  <div class="bg-particle particle-3"></div>
-  <div class="bg-particle particle-4"></div>
-  <div class="bg-particle particle-5"></div>
-  <div class="gradient-orb orb-1"></div>
-  <div class="gradient-orb orb-2"></div>
-  <div class="gradient-orb orb-3"></div>
-</div>
-
-<div class="app-container">
-
-  <!-- Hero Header -->
-  <header class="hero">
-    <div class="hero-badge"><span class="dot"></span> Multi-Model Collaborative AI + SAM-AI Analysis</div>
-    <h1>SynapseForge</h1>
-    <p>Fuse multiple AI models into one collaborative intelligence. Each model contributes unique strengths — SAM-AI validates and analyzes the results with neuro-symbolic reasoning.</p>
-  </header>
-
-  <!-- SAM-AI Status Banner -->
-  <div class="sam-status-banner" id="sam-status-banner">
-    <div class="sam-status-icon" id="sam-status-icon">⏳</div>
-    <div class="sam-status-text">
-      <strong id="sam-status-title">Checking SAM-AI...</strong>
-      <span id="sam-status-detail">Connecting to neuro-symbolic engine</span>
-    </div>
+  <!-- 🎬 ANIMATED MOTION BACKGROUND -->
+  <div class="animated-bg">
+    <div class="bg-particle particle-1"></div>
+    <div class="bg-particle particle-2"></div>
+    <div class="bg-particle particle-3"></div>
+    <div class="bg-particle particle-4"></div>
+    <div class="bg-particle particle-5"></div>
+    <div class="gradient-orb orb-1"></div>
+    <div class="gradient-orb orb-2"></div>
+    <div class="gradient-orb orb-3"></div>
   </div>
 
-  <!-- 💰 COST CALCULATOR PANEL -->
-  <div class="cost-panel">
-    <div class="cost-header">
-      <h3>💰 Cost Estimator</h3>
-      <p style="margin-top: 8px; color: var(--text-secondary); font-size: 0.9rem;">Estimated API cost based on selected models and rounds</p>
-    </div>
-    <div class="cost-grid">
-      <div class="cost-item">
-        <div class="cost-label">Premium Models</div>
-        <div class="cost-value">$2.50</div>
-        <div class="cost-detail">GPT-4o, Claude 3 Opus</div>
-      </div>
-      <div class="cost-item">
-        <div class="cost-label">Mid-Tier Models</div>
-        <div class="cost-value">$1.20</div>
-        <div class="cost-detail">GPT-4o Mini, Gemini Pro</div>
-      </div>
-      <div class="cost-item">
-        <div class="cost-label">Fast Models</div>
-        <div class="cost-value">$0.30</div>
-        <div class="cost-detail">Gemini Flash, Claude Haiku</div>
-      </div>
-      <div class="cost-item highlight">
-        <div class="cost-label">Estimated Total</div>
-        <div class="cost-value" id="total-cost">$4.00</div>
-        <div class="cost-detail">For 3 rounds of debate</div>
+  <div class="app-container">
+
+    <!-- Hero Header -->
+    <header class="hero">
+      <div class="hero-badge"><span class="dot"></span> Multi-Model Collaborative AI + SAM-AI Analysis</div>
+      <h1>SynapseForge</h1>
+      <p>Fuse multiple AI models into one collaborative intelligence. Each model contributes unique strengths — SAM-AI
+        validates and analyzes the results with neuro-symbolic reasoning.</p>
+    </header>
+
+    <!-- SAM-AI Status Banner -->
+    <div class="sam-status-banner" id="sam-status-banner">
+      <div class="sam-status-icon" id="sam-status-icon">⏳</div>
+      <div class="sam-status-text">
+        <strong id="sam-status-title">Checking SAM-AI...</strong>
+        <span id="sam-status-detail">Connecting to neuro-symbolic engine</span>
       </div>
     </div>
-  </div>
 
-  <!-- Navigation Tabs -->
-  <nav class="nav-tabs" id="mainNav">
-    <button class="nav-tab active" data-tab="studio">⚡ Studio</button>
-    <button class="nav-tab" data-tab="feed">📜 Synthesis Feed</button>
-    <button class="nav-tab" data-tab="sam-analysis">🧠 SAM-AI Analysis</button>
-    <button class="nav-tab" data-tab="analytics">📊 Analytics</button>
-  </nav>
-
-  <!-- ════════════════════════  STUDIO TAB  ════════════════════════ -->
-  <div class="tab-content active" id="tab-studio">
-    <div class="grid-2">
-      <!-- Left: API Keys + Config -->
-      <div>
-        <div class="card section">
-          <div class="card-header">
-            <div class="card-title"><span class="icon">🔑</span> Provider API Keys</div>
-          </div>
-          <div class="key-group">
-            <div class="key-label">
-              <span style="color:var(--accent-emerald)">●</span> OpenAI
-              <span class="key-status missing" id="status-openai">Missing</span>
-            </div>
-            <input class="key-input" type="password" id="key-openai" placeholder="sk-..." data-provider="openai">
-          </div>
-          <div class="key-group">
-            <div class="key-label">
-              <span style="color:var(--accent-amber)">●</span> Google (Gemini)
-              <span class="key-status missing" id="status-google">Missing</span>
-            </div>
-            <input class="key-input" type="password" id="key-google" placeholder="AIza..." data-provider="google">
-          </div>
-          <div class="key-group">
-            <div class="key-label">
-              <span style="color:var(--accent-rose)">●</span> Anthropic (Claude)
-              <span class="key-status missing" id="status-anthropic">Missing</span>
-            </div>
-            <input class="key-input" type="password" id="key-anthropic" placeholder="sk-ant-..." data-provider="anthropic">
-          </div>
+    <!-- 💰 COST CALCULATOR PANEL -->
+    <div class="cost-panel">
+      <div class="cost-header">
+        <h3>💰 Cost Estimator</h3>
+        <p style="margin-top: 8px; color: var(--text-secondary); font-size: 0.9rem;">Estimated API cost based on
+          selected models and rounds</p>
+      </div>
+      <div class="cost-grid">
+        <div class="cost-item">
+          <div class="cost-label">Premium Models</div>
+          <div class="cost-value">$2.50</div>
+          <div class="cost-detail">GPT-4o, Claude 3 Opus</div>
         </div>
-
-        <!-- Config -->
-        <div class="card section">
-          <div class="card-header">
-            <div class="card-title"><span class="icon">⚙️</span> Synthesis Config</div>
-          </div>
-          <div class="slider-group">
-            <div class="slider-label"><span>Collaboration Rounds</span><span id="val-rounds">3</span></div>
-            <input class="slider-input" type="range" id="cfg-rounds" min="1" max="8" value="3">
-          </div>
-          <div class="slider-group">
-            <div class="slider-label"><span>Budget Cap (USD)</span><span id="val-budget">$0.75</span></div>
-            <input class="slider-input" type="range" id="cfg-budget" min="5" max="1000" value="75" step="5">
-          </div>
-          <div class="slider-group">
-            <div class="slider-label"><span>Temperature</span><span id="val-temp">0.20</span></div>
-            <input class="slider-input" type="range" id="cfg-temp" min="0" max="100" value="20">
-          </div>
-          <div class="slider-group">
-            <div class="slider-label"><span>Consensus Threshold</span><span id="val-consensus">55%</span></div>
-            <input class="slider-input" type="range" id="cfg-consensus" min="20" max="90" value="55">
-          </div>
-          <div class="key-group" style="margin-top:12px">
-            <div class="key-label">Preset</div>
-            <select class="select-input" id="preset-select">
-              <option value="Balanced">⚖️ Balanced — Fast & cost-effective</option>
-              <option value="Rigorous">🔬 Rigorous — Maximum quality</option>
-              <option value="Demo">🎭 Demo — Mock agents (free)</option>
-            </select>
-          </div>
+        <div class="cost-item">
+          <div class="cost-label">Mid-Tier Models</div>
+          <div class="cost-value">$1.20</div>
+          <div class="cost-detail">GPT-4o Mini, Gemini Pro</div>
+        </div>
+        <div class="cost-item">
+          <div class="cost-label">Fast Models</div>
+          <div class="cost-value">$0.30</div>
+          <div class="cost-detail">Gemini Flash, Claude Haiku</div>
+        </div>
+        <div class="cost-item highlight">
+          <div class="cost-label">Estimated Total</div>
+          <div class="cost-value" id="total-cost">$4.00</div>
+          <div class="cost-detail">For 3 rounds of debate</div>
         </div>
       </div>
+    </div>
 
-      <!-- Right: Model Selection + Query -->
-      <div>
-        <div class="card section">
-          <div class="card-header">
-            <div class="card-title"><span class="icon">🤖</span> Model Team</div>
-          </div>
-          <div class="section-title" style="font-size:0.85rem">Core Contributors</div>
-          <div id="model-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px"></div>
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs" id="mainNav">
+      <button class="nav-tab active" data-tab="studio">⚡ Studio</button>
+      <button class="nav-tab" data-tab="feed">📜 Synthesis Feed</button>
+      <button class="nav-tab" data-tab="sam-analysis">🧠 SAM-AI Analysis</button>
+      <button class="nav-tab" data-tab="analytics">📊 Analytics</button>
+    </nav>
 
-          <div class="key-group">
-            <div class="key-label">Judge / Synthesizer</div>
-            <select class="select-input" id="select-judge"></select>
+    <!-- ════════════════════════  STUDIO TAB  ════════════════════════ -->
+    <div class="tab-content active" id="tab-studio">
+      <div class="grid-2">
+        <!-- Left: API Keys + Config -->
+        <div>
+          <div class="card section">
+            <div class="card-header">
+              <div class="card-title"><span class="icon">🔑</span> Provider API Keys</div>
+            </div>
+            <div class="key-group">
+              <div class="key-label">
+                <span style="color:var(--accent-emerald)">●</span> OpenAI
+                <span class="key-status missing" id="status-openai">Missing</span>
+              </div>
+              <input class="key-input" type="password" id="key-openai" placeholder="sk-..." data-provider="openai">
+            </div>
+            <div class="key-group">
+              <div class="key-label">
+                <span style="color:var(--accent-amber)">●</span> Google (Gemini)
+                <span class="key-status missing" id="status-google">Missing</span>
+              </div>
+              <input class="key-input" type="password" id="key-google" placeholder="AIza..." data-provider="google">
+            </div>
+            <div class="key-group">
+              <div class="key-label">
+                <span style="color:var(--accent-rose)">●</span> Anthropic (Claude)
+                <span class="key-status missing" id="status-anthropic">Missing</span>
+              </div>
+              <input class="key-input" type="password" id="key-anthropic" placeholder="sk-ant-..."
+                data-provider="anthropic">
+            </div>
+            <div class="key-group">
+              <div class="key-label">
+                <span style="color:var(--accent-cyan)">●</span> OpenRouter
+                <span class="key-status missing" id="status-openrouter">Missing</span>
+              </div>
+              <input class="key-input" type="password" id="key-openrouter" placeholder="sk-or-..."
+                data-provider="openrouter">
+            </div>
+            <div class="key-group">
+              <div class="key-label">
+                <span style="color:var(--accent-indigo)">●</span> xAI (Grok)
+                <span class="key-status missing" id="status-grok">Missing</span>
+              </div>
+              <input class="key-input" type="password" id="key-grok" placeholder="xai-..." data-provider="grok">
+            </div>
           </div>
-          <div class="key-group">
-            <div class="key-label">Verification Agent (optional)</div>
-            <select class="select-input" id="select-fact"><option value="">None</option></select>
-          </div>
-          <div class="key-group">
-            <div class="key-label">Stress-Test Agent (optional)</div>
-            <select class="select-input" id="select-adversarial"><option value="">None</option></select>
+
+          <!-- Config -->
+          <div class="card section">
+            <div class="card-header">
+              <div class="card-title"><span class="icon">⚙️</span> Synthesis Config</div>
+            </div>
+            <div class="slider-group">
+              <div class="slider-label"><span>Collaboration Rounds</span><span id="val-rounds">3</span></div>
+              <input class="slider-input" type="range" id="cfg-rounds" min="1" max="8" value="3">
+            </div>
+            <div class="slider-group">
+              <div class="slider-label"><span>Budget Cap (USD)</span><span id="val-budget">$0.75</span></div>
+              <input class="slider-input" type="range" id="cfg-budget" min="5" max="1000" value="75" step="5">
+            </div>
+            <div class="slider-group">
+              <div class="slider-label"><span>Temperature</span><span id="val-temp">0.20</span></div>
+              <input class="slider-input" type="range" id="cfg-temp" min="0" max="100" value="20">
+            </div>
+            <div class="slider-group">
+              <div class="slider-label"><span>Consensus Threshold</span><span id="val-consensus">55%</span></div>
+              <input class="slider-input" type="range" id="cfg-consensus" min="20" max="90" value="55">
+            </div>
+            <div class="key-group" style="margin-top:12px">
+              <div class="key-label">Preset</div>
+              <select class="select-input" id="preset-select">
+                <option value="Balanced">⚖️ Balanced — Fast & cost-effective</option>
+                <option value="Rigorous">🔬 Rigorous — Maximum quality</option>
+                <option value="Demo">🎭 Demo — Mock agents (free)</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        <div class="card section">
-          <div class="card-header">
-            <div class="card-title"><span class="icon">💬</span> Research Query</div>
+        <!-- Right: Model Selection + Query -->
+        <div>
+          <div class="card section">
+            <div class="card-header">
+              <div class="card-title"><span class="icon">🤖</span> Model Team</div>
+            </div>
+            <div class="section-title"
+              style="font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
+              <span>Core Contributors</span>
+              <button class="btn btn-secondary btn-sm" id="btn-toggle-custom"
+                style="padding: 4px 10px; font-size: 0.75rem;">+ Custom Model</button>
+            </div>
+
+            <div id="custom-builder"
+              style="display:none; background:var(--bg-glass); border:1px solid var(--border-glass); border-radius:var(--radius-sm); padding:16px; margin-bottom:16px; font-size:0.85rem;">
+              <div class="key-group">
+                <div class="key-label">Provider</div>
+                <select class="select-input" id="custom-provider">
+                  <option value="openrouter">OpenRouter (Any Model)</option>
+                  <option value="grok">xAI (Grok)</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="google">Google Gemini</option>
+                  <option value="anthropic">Anthropic Claude</option>
+                </select>
+              </div>
+              <div class="key-group">
+                <div class="key-label">Model ID <span style="font-weight:normal;color:var(--text-muted)">(e.g.
+                    meta-llama/llama-3-8b-instruct)</span></div>
+                <input class="key-input" type="text" id="custom-model-id" placeholder="Model ID">
+              </div>
+              <div class="key-group">
+                <div class="key-label">Display Name <span
+                    style="font-weight:normal;color:var(--text-muted)">(optional)</span></div>
+                <input class="key-input" type="text" id="custom-model-label" placeholder="Custom Llama 3">
+              </div>
+              <button class="btn btn-primary btn-sm btn-full" id="btn-add-custom">Add to Team</button>
+            </div>
+
+            <div id="model-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px"></div>
+
+            <div class="key-group">
+              <div class="key-label">Judge / Synthesizer</div>
+              <select class="select-input" id="select-judge"></select>
+            </div>
+            <div class="key-group">
+              <div class="key-label">Verification Agent (optional)</div>
+              <select class="select-input" id="select-fact">
+                <option value="">None</option>
+              </select>
+            </div>
+            <div class="key-group">
+              <div class="key-label">Stress-Test Agent (optional)</div>
+              <select class="select-input" id="select-adversarial">
+                <option value="">None</option>
+              </select>
+            </div>
           </div>
-          <textarea class="query-area" id="query-input" placeholder="Ask a complex question and let multiple AI models collaborate to produce the best possible answer...
+
+          <div class="card section">
+            <div class="card-header">
+              <div class="card-title"><span class="icon">💬</span> Research Query</div>
+            </div>
+            <textarea class="query-area" id="query-input"
+              placeholder="Ask a complex question and let multiple AI models collaborate to produce the best possible answer...
 
 Example: What are the most promising approaches to achieving AGI safety, and how should research priorities be allocated over the next 5 years?"></textarea>
-        </div>
-
-        <!-- Lineup Preview -->
-        <div class="grid-4" id="lineup-metrics" style="margin-bottom:16px">
-          <div class="metric-card"><div class="metric-value" id="m-lineup">0</div><div class="metric-label">Team Size</div></div>
-          <div class="metric-card"><div class="metric-value" id="m-models">0</div><div class="metric-label">Models</div></div>
-          <div class="metric-card"><div class="metric-value" id="m-providers">0</div><div class="metric-label">Providers</div></div>
-          <div class="metric-card"><div class="metric-value" id="m-rounds">3</div><div class="metric-label">Rounds</div></div>
-        </div>
-
-        <button class="btn btn-primary btn-full" id="btn-run" disabled>
-          <span>⚡</span> Launch Collaborative Synthesis
-        </button>
-        <button class="btn btn-secondary btn-full" id="btn-clear" style="margin-top:8px;display:none">
-          Clear Results
-        </button>
-      </div>
-    </div>
-
-    <!-- Results Area -->
-    <div id="results-area" style="display:none;margin-top:32px">
-      <div class="synthesis-panel" id="synthesis-panel">
-        <div class="synthesis-label">⚡ SynapseForge — Collaborative Synthesis</div>
-        <div class="grid-4" style="margin-bottom:20px" id="result-metrics"></div>
-        <div class="synthesis-body" id="synthesis-body"></div>
-      </div>
-      <!-- Warnings -->
-      <div id="warnings-area" style="margin-top:16px"></div>
-    </div>
-  </div>
-
-  <!-- ════════════════════════  FEED TAB  ════════════════════════ -->
-  <div class="tab-content" id="tab-feed">
-    <div id="feed-empty" class="card" style="text-align:center;padding:60px;color:var(--text-muted)">
-      <div style="font-size:2.5rem;margin-bottom:12px">📜</div>
-      <p>Run a synthesis from the Studio tab to see the collaboration feed here.</p>
-    </div>
-    <div id="feed-content" style="display:none"></div>
-  </div>
-
-  <!-- ════════════════════════  SAM-AI ANALYSIS TAB  ════════════════════════ -->
-  <div class="tab-content" id="tab-sam-analysis">
-    <div id="sam-empty" class="card" style="text-align:center;padding:60px;color:var(--text-muted)">
-      <div style="font-size:2.5rem;margin-bottom:12px">🧠</div>
-      <p>Run a synthesis from the Studio tab, then SAM-AI will automatically analyze the results.</p>
-      <p style="font-size:0.85rem;margin-top:8px">The 4-phase analysis includes: Individual Truth Levels → Debate Believability → Consensus Synthesis → Formal Analysis</p>
-    </div>
-    <div id="sam-content" style="display:none">
-      <!-- Phase 1: Individual Truth Levels -->
-      <div class="sam-phase" id="sam-phase-1">
-        <div class="phase-header-bar">
-          <span class="phase-number">01</span>
-          <div>
-            <h3>Individual Postulations & Truth Levels</h3>
-            <p>Each model's initial response evaluated for reliability</p>
           </div>
-        </div>
-        <div id="sam-individual-cards" class="sam-grid"></div>
-      </div>
 
-      <!-- Phase 2: Debate Believability -->
-      <div class="sam-phase" id="sam-phase-2">
-        <div class="phase-header-bar">
-          <span class="phase-number">02</span>
-          <div>
-            <h3>Debate Arena — Believability Tracking</h3>
-            <p>Truth-level evolution across debate rounds</p>
-          </div>
-        </div>
-        <div id="sam-debate-rounds"></div>
-      </div>
-
-      <!-- Phase 3: Consensus Synthesis -->
-      <div class="sam-phase" id="sam-phase-3">
-        <div class="phase-header-bar">
-          <span class="phase-number">03</span>
-          <div>
-            <h3>Consensus Synthesis</h3>
-            <p>Synthesizer's final answer with analysis</p>
-          </div>
-        </div>
-        <div id="sam-synthesis-output"></div>
-      </div>
-
-      <!-- Phase 4: SAM-AI Formal Analysis -->
-      <div class="sam-phase" id="sam-phase-4">
-        <div class="phase-header-bar">
-          <span class="phase-number">04</span>
-          <div>
-            <h3>SAM-AI Formal Analysis</h3>
-            <p>Neuro-symbolic reasoning quality assessment</p>
-          </div>
-        </div>
-        <div id="sam-formal-analysis">
-          <div id="sam-analysis-loading" style="display:none">
-            <div class="sam-loading-card">
-              <div class="sam-loading-spinner"></div>
-              <p>Running SAM-AI neuro-symbolic analysis pipeline...</p>
+          <!-- Lineup Preview -->
+          <div class="grid-4" id="lineup-metrics" style="margin-bottom:16px">
+            <div class="metric-card">
+              <div class="metric-value" id="m-lineup">0</div>
+              <div class="metric-label">Team Size</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-value" id="m-models">0</div>
+              <div class="metric-label">Models</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-value" id="m-providers">0</div>
+              <div class="metric-label">Providers</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-value" id="m-rounds">3</div>
+              <div class="metric-label">Rounds</div>
             </div>
           </div>
-          <div id="sam-analysis-results" style="display:none"></div>
-          <div id="sam-analysis-error" style="display:none"></div>
+
+          <button class="btn btn-primary btn-full" id="btn-run" disabled>
+            <span>⚡</span> Launch Collaborative Synthesis
+          </button>
+          <button class="btn btn-secondary btn-full" id="btn-clear" style="margin-top:8px;display:none">
+            Clear Results
+          </button>
+        </div>
+      </div>
+
+      <!-- Results Area -->
+      <div id="results-area" style="display:none;margin-top:32px">
+        <div class="synthesis-panel" id="synthesis-panel">
+          <div class="synthesis-label">⚡ SynapseForge — Collaborative Synthesis</div>
+          <div class="grid-4" style="margin-bottom:20px" id="result-metrics"></div>
+          <div class="synthesis-body" id="synthesis-body"></div>
+        </div>
+        <!-- Warnings -->
+        <div id="warnings-area" style="margin-top:16px"></div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════  FEED TAB  ════════════════════════ -->
+    <div class="tab-content" id="tab-feed">
+      <div id="feed-empty" class="card" style="text-align:center;padding:60px;color:var(--text-muted)">
+        <div style="font-size:2.5rem;margin-bottom:12px">📜</div>
+        <p>Run a synthesis from the Studio tab to see the collaboration feed here.</p>
+      </div>
+      <div id="feed-content" style="display:none"></div>
+    </div>
+
+    <!-- ════════════════════════  SAM-AI ANALYSIS TAB  ════════════════════════ -->
+    <div class="tab-content" id="tab-sam-analysis">
+      <div id="sam-empty" class="card" style="text-align:center;padding:60px;color:var(--text-muted)">
+        <div style="font-size:2.5rem;margin-bottom:12px">🧠</div>
+        <p>Run a synthesis from the Studio tab, then SAM-AI will automatically analyze the results.</p>
+        <p style="font-size:0.85rem;margin-top:8px">The 4-phase analysis includes: Individual Truth Levels → Debate
+          Believability → Consensus Synthesis → Formal Analysis</p>
+      </div>
+      <div id="sam-content" style="display:none">
+        <!-- Phase 1: Individual Truth Levels -->
+        <div class="sam-phase" id="sam-phase-1">
+          <div class="phase-header-bar">
+            <span class="phase-number">01</span>
+            <div>
+              <h3>Individual Postulations & Truth Levels</h3>
+              <p>Each model's initial response evaluated for reliability</p>
+            </div>
+          </div>
+          <div id="sam-individual-cards" class="sam-grid"></div>
+        </div>
+
+        <!-- Phase 2: Debate Believability -->
+        <div class="sam-phase" id="sam-phase-2">
+          <div class="phase-header-bar">
+            <span class="phase-number">02</span>
+            <div>
+              <h3>Debate Arena — Believability Tracking</h3>
+              <p>Truth-level evolution across debate rounds</p>
+            </div>
+          </div>
+          <div id="sam-debate-rounds"></div>
+        </div>
+
+        <!-- Phase 3: Consensus Synthesis -->
+        <div class="sam-phase" id="sam-phase-3">
+          <div class="phase-header-bar">
+            <span class="phase-number">03</span>
+            <div>
+              <h3>Consensus Synthesis</h3>
+              <p>Synthesizer's final answer with analysis</p>
+            </div>
+          </div>
+          <div id="sam-synthesis-output"></div>
+        </div>
+
+        <!-- Phase 4: SAM-AI Formal Analysis -->
+        <div class="sam-phase" id="sam-phase-4">
+          <div class="phase-header-bar">
+            <span class="phase-number">04</span>
+            <div>
+              <h3>SAM-AI Formal Analysis</h3>
+              <p>Neuro-symbolic reasoning quality assessment</p>
+            </div>
+          </div>
+          <div id="sam-formal-analysis">
+            <div id="sam-analysis-loading" style="display:none">
+              <div class="sam-loading-card">
+                <div class="sam-loading-spinner"></div>
+                <p>Running SAM-AI neuro-symbolic analysis pipeline...</p>
+              </div>
+            </div>
+            <div id="sam-analysis-results" style="display:none"></div>
+            <div id="sam-analysis-error" style="display:none"></div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- ════════════════════════  ANALYTICS TAB  ════════════════════════ -->
-  <div class="tab-content" id="tab-analytics">
-    <div id="analytics-empty" class="card" style="text-align:center;padding:60px;color:var(--text-muted)">
-      <div style="font-size:2.5rem;margin-bottom:12px">📊</div>
-      <p>Analytics will appear here after a synthesis run.</p>
+    <!-- ════════════════════════  ANALYTICS TAB  ════════════════════════ -->
+    <div class="tab-content" id="tab-analytics">
+      <div id="analytics-empty" class="card" style="text-align:center;padding:60px;color:var(--text-muted)">
+        <div style="font-size:2.5rem;margin-bottom:12px">📊</div>
+        <p>Analytics will appear here after a synthesis run.</p>
+      </div>
+      <div id="analytics-content" style="display:none"></div>
     </div>
-    <div id="analytics-content" style="display:none"></div>
+
+    <footer class="footer">
+      SynapseForge — Multi-Model Collaborative Intelligence Engine + SAM-AI Analysis<br>
+      <span style="opacity:0.6">Built by Samrisht · Research-Grade AI Debate Engine · 2026</span>
+    </footer>
   </div>
 
-  <footer class="footer">
-    SynapseForge — Multi-Model Collaborative Intelligence Engine + SAM-AI Analysis<br>
-    <span style="opacity:0.6">Built by Samrisht · Research-Grade AI Debate Engine · 2026</span>
-  </footer>
-</div>
+  <!-- ═══ Loading Overlay ═══ -->
+  <div class="spinner-overlay" id="loading" style="display:none">
+    <div class="spinner"></div>
+    <div class="spinner-text" id="loading-text">Initializing collaborative synthesis...</div>
+    <div class="spinner-sub" id="loading-sub"></div>
+  </div>
 
-<!-- ═══ Loading Overlay ═══ -->
-<div class="spinner-overlay" id="loading" style="display:none">
-  <div class="spinner"></div>
-  <div class="spinner-text" id="loading-text">Initializing collaborative synthesis...</div>
-  <div class="spinner-sub" id="loading-sub"></div>
-</div>
-
-<script src="/static/app.js"></script>
+  <script src="/static/app.js"></script>
 </body>
+
 </html>
