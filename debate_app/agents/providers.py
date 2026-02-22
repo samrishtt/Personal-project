@@ -53,13 +53,13 @@ MODEL_CATALOG: List[ModelSpec] = [
     ModelSpec(
         label="Google Gemini 1.5 Pro",
         provider="google",
-        model_id="gemini-1.5-pro",
+        model_id="gemini-1.5-pro-latest",
         role_hints=("debater", "judge", "fact_checker", "adversarial"),
     ),
     ModelSpec(
         label="Google Gemini 1.5 Flash",
         provider="google",
-        model_id="gemini-1.5-flash",
+        model_id="gemini-1.5-flash-latest",
         role_hints=("debater", "fact_checker", "adversarial"),
     ),
     ModelSpec(
