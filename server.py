@@ -1,17 +1,17 @@
 """
-SynapseForge — Flask Backend Server
-Serves the web UI and exposes /api/run for collaborative multi-model synthesis.
-
-IMPROVEMENTS:
-- Parallel execution of agents using ThreadPoolExecutor (handles 5-10 models concurrently)
-- Non-blocking model inference for better performance
-- Real-time response streaming
+SynapseForge — Flask Backend Server (V2 + SAM-AI Integration)
+Serves the web UI and exposes:
+  /api/run       — Run multi-model collaborative synthesis
+  /api/analyze   — Run SAM-AI neuro-symbolic analysis on results
+  /api/health    — Health check
+  /api/models    — List available models
 """
 from __future__ import annotations
 
 import json
 import re
 import time
+import traceback
 from itertools import combinations
 from typing import Dict, List, Optional, Sequence, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -33,6 +33,16 @@ from debate_app.core.prompts import (
     FACT_CHECKER_SYSTEM_PROMPT,
     JUDGE_SYSTEM_PROMPT,
 )
+
+# ── SAM-AI Integration ─────────────────────────────────────────────────────
+SAM_AI_AVAILABLE = False
+_SAM_AI_ERROR = ""
+try:
+    from integration.sam_bridge import compute_truth_level, run_full_analysis
+    SAM_AI_AVAILABLE = True
+except Exception as _err:
+    _SAM_AI_ERROR = str(_err)
+    print(f"[WARN] SAM-AI not available: {_SAM_AI_ERROR}")
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 # Thread pool for parallel agent execution (supports up to 10 concurrent models)
@@ -68,6 +78,20 @@ def consensus_score(texts: Sequence[str]) -> float:
 def trim_text(value: str, limit: int = 650) -> str:
     text = (value or "").strip()
     return text if len(text) <= limit else text[:limit].rstrip() + " ..."
+
+
+def _compute_truth_for_response(resp: dict) -> dict:
+    """Compute SAM-AI truth level for a single response."""
+    if not SAM_AI_AVAILABLE:
+        return None
+    try:
+        truth = compute_truth_level(
+            str(resp.get("content", "")),
+            float(resp.get("confidence", 0.5)),
+        )
+        return truth
+    except Exception as e:
+        return {"error": str(e), "truth_score": 0, "reliability_rating": "UNKNOWN"}
 
 
 # ─── Routes ─────────────────────────────────────────────────────────────────
@@ -150,7 +174,7 @@ def api_run():
             break
 
         responses: List[Dict] = []
-        
+
         # PARALLEL EXECUTION: Submit all agents to ThreadPoolExecutor
         futures = {}
         for role, spec, name, agent in roster:
@@ -159,19 +183,19 @@ def api_run():
                 break
             future = EXECUTOR.submit(agent.generate_response, query=query, context=context)
             futures[future] = (role, spec, name, agent)
-        
+
         # Collect results as they complete (non-blocking)
         for future in as_completed(futures):
             if total_cost >= budget:
                 break
-            
+
             role, spec, name, agent = futures[future]
             try:
-                result = future.result(timeout=60)  # 60-second timeout per agent
+                result = future.result(timeout=60)
             except Exception as e:
                 result_content = f"Error: Agent {name} failed - {str(e)}"
                 result = AgentResponse(content=result_content, confidence=0.0, model_name=spec.model_id)
-            
+
             is_error = str(result.content).strip().lower().startswith("error:")
             record = {
                 "round": round_number,
@@ -187,6 +211,13 @@ def api_run():
                 "content": result.content,
                 "is_error": is_error,
             }
+
+            # Compute SAM-AI truth level for each debater response
+            if SAM_AI_AVAILABLE and role == "debater" and not is_error:
+                truth = _compute_truth_for_response(record)
+                if truth:
+                    record["truth_level"] = truth
+
             responses.append(record)
             total_cost += result.cost
             if is_error:
@@ -260,7 +291,62 @@ def api_run():
         "stopped_reason": stop_reason,
         "final_answer": final_answer,
         "warnings": warnings,
+        "sam_ai_available": SAM_AI_AVAILABLE,
     })
+
+
+@app.route("/api/analyze", methods=["POST"])
+def api_analyze():
+    """
+    Run SAM-AI neuro-symbolic analysis on the final synthesis.
+    
+    Expects JSON body:
+      - text: The final synthesized answer text to analyze
+      - responses (optional): Array of individual response objects for truth-level computation
+    
+    Returns full SAM-AI analysis report.
+    """
+    if not SAM_AI_AVAILABLE:
+        return jsonify({
+            "error": f"SAM-AI integration not available: {_SAM_AI_ERROR}",
+            "sam_ai_available": False,
+        }), 503
+
+    data = request.get_json(force=True)
+    text = (data.get("text") or "").strip()
+    if not text:
+        return jsonify({"error": "No text provided for analysis."}), 400
+
+    try:
+        # Run the full SAM-AI analysis pipeline
+        report = run_full_analysis(text)
+
+        # Compute individual truth levels if responses provided
+        individual_truths = []
+        responses = data.get("responses", [])
+        for resp in responses:
+            content = str(resp.get("content", ""))
+            confidence = float(resp.get("confidence", 0.5))
+            if content.strip():
+                truth = compute_truth_level(content, confidence)
+                truth["agent"] = resp.get("agent", "Unknown")
+                truth["model"] = resp.get("model", "unknown")
+                individual_truths.append(truth)
+
+        return jsonify({
+            "success": True,
+            "sam_ai_available": True,
+            "analysis": report,
+            "individual_truths": individual_truths,
+        })
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "sam_ai_available": True,
+        }), 500
 
 
 @app.route("/api/health", methods=["GET"])
@@ -268,9 +354,11 @@ def health_check():
     """Check if the server is running and ready."""
     return jsonify({
         "status": "healthy",
-        "server": "SynapseForge v2.0",
+        "server": "SynapseForge v2.0 + SAM-AI",
         "parallel_workers": 10,
         "models_available": len(MODEL_CATALOG),
+        "sam_ai_available": SAM_AI_AVAILABLE,
+        "sam_ai_error": _SAM_AI_ERROR if not SAM_AI_AVAILABLE else None,
     }), 200
 
 
@@ -311,4 +399,10 @@ def internal_error(error):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000, threaded=True)
+    print("=" * 60)
+    print("  SynapseForge V2 + SAM-AI Server")
+    print(f"  SAM-AI: {'[OK] Available' if SAM_AI_AVAILABLE else '[WARN] Not Available'}")
+    if not SAM_AI_AVAILABLE:
+        print(f"  Error: {_SAM_AI_ERROR}")
+    print("=" * 60)
+    app.run(debug=True, use_reloader=False, port=5000, threaded=True)

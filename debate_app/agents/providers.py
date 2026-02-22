@@ -451,10 +451,8 @@ class MockAgent(Agent):
         }
         snippet = random.choice(response_templates.get(self.behavior, response_templates["skeptical"]))
         final_content = (
-            f"[{self.name}]\n"
-            f"Question: {query}\n"
-            f"Assessment: {snippet}\n"
-            "Confidence: 62%"
+            f"[{self.name}] Assessment:\n"
+            f"{snippet}\n"
         )
         return AgentResponse(
             content=final_content,

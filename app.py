@@ -41,6 +41,14 @@ from debate_app.core.prompts import (
     JUDGE_SYSTEM_PROMPT,
 )
 
+# ── SAM-AI Integration ─────────────────────────────────────────────────────
+try:
+    from integration.sam_bridge import compute_truth_level, run_full_analysis
+    SAM_AI_AVAILABLE = True
+except Exception as _sam_err:
+    SAM_AI_AVAILABLE = False
+    _SAM_AI_IMPORT_ERROR = str(_sam_err)
+
 load_dotenv()
 st.set_page_config(page_title="SynapseForge Studio", page_icon="⚡", layout="wide")
 
@@ -113,6 +121,37 @@ def inject_css() -> None:
                 padding: 1.5rem;
                 background: rgba(30, 41, 59, 0.8);
                 line-height: 1.7;
+            }
+            .truth-gauge {
+                display: inline-block;
+                background: rgba(52, 211, 153, 0.1);
+                border: 1px solid rgba(52, 211, 153, 0.3);
+                border-radius: 20px;
+                padding: 0.2rem 0.7rem;
+                font-size: 0.82rem;
+                font-weight: 600;
+            }
+            .truth-high { color: #34d399; border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.12); }
+            .truth-mod  { color: #fbbf24; border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.12); }
+            .truth-low  { color: #f87171; border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.12); }
+            .score-bar-bg { background: rgba(255,255,255,0.08); border-radius: 8px; height: 10px; margin: 4px 0; }
+            .score-bar-fg { height: 10px; border-radius: 8px; transition: width 0.5s ease; }
+            .analysis-card {
+                border: 1px solid rgba(129,140,248,0.2);
+                background: rgba(30,27,75,0.5);
+                border-radius: 14px;
+                padding: 1.2rem;
+                margin-bottom: 0.8rem;
+                backdrop-filter: blur(8px);
+            }
+            .analysis-title { font-size: 1rem; font-weight: 600; color: #a78bfa; margin-bottom: 0.6rem; }
+            .badge-pass { background:#064e3b; color:#6ee7b7; border-radius:6px; padding:2px 8px; font-size:0.8rem; }
+            .badge-fail { background:#7f1d1d; color:#fca5a5; border-radius:6px; padding:2px 8px; font-size:0.8rem; }
+            .badge-warn { background:#78350f; color:#fcd34d; border-radius:6px; padding:2px 8px; font-size:0.8rem; }
+            .phase-header {
+                font-size: 1.15rem; font-weight: 700; color: #c4b5fd;
+                border-bottom: 2px solid rgba(167,139,250,0.3);
+                padding-bottom: 0.5rem; margin-bottom: 1rem;
             }
         </style>
         """,
@@ -214,6 +253,180 @@ def fill_prompt(template: str, replacements: Dict[str, object]) -> str:
     for key, value in replacements.items():
         output = output.replace("{" + key + "}", str(value))
     return output
+
+
+# ── SAM-AI UI Helpers ───────────────────────────────────────────────────────
+
+def _truth_badge(score: float, rating: str) -> str:
+    """Return an HTML truth-level badge."""
+    pct = f"{score * 100:.0f}%"
+    if rating in ("HIGH",):
+        cls = "truth-gauge truth-high"
+        icon = "🟢"
+    elif rating in ("MODERATE",):
+        cls = "truth-gauge truth-mod"
+        icon = "🟡"
+    else:
+        cls = "truth-gauge truth-low"
+        icon = "🔴"
+    return f'<span class="{cls}">{icon} {pct} Truth · {rating}</span>'
+
+
+def _score_bar(value: float, color: str = "#818cf8") -> str:
+    pct = max(0, min(100, value * 100))
+    return (
+        f'<div class="score-bar-bg">'
+        f'<div class="score-bar-fg" style="width:{pct:.1f}%;background:{color};"></div>'
+        f'</div>'
+    )
+
+
+def render_individual_postulations(run: Dict) -> None:
+    """Phase 1: Show each model's initial individual response with truth level."""
+    st.markdown('<div class="phase-header">🧪 Phase 1 — Individual Postulations & Truth Levels</div>', unsafe_allow_html=True)
+    if not SAM_AI_AVAILABLE:
+        st.warning("SAM-AI integration unavailable. Truth levels cannot be computed.")
+        return
+
+    first_round = (run.get("rounds") or [{}])[0] if run.get("rounds") else {}
+    responses = first_round.get("responses", [])
+    if not responses:
+        st.info("No individual responses recorded.")
+        return
+
+    debater_responses = [r for r in responses if r.get("role") == "debater"]
+    cols = st.columns(max(1, len(debater_responses)))
+    for i, resp in enumerate(debater_responses):
+        with cols[i % len(cols)]:
+            truth = compute_truth_level(
+                str(resp.get("content", "")),
+                _safe_float(resp.get("confidence", 0.5), 0.5),
+            )
+            badge = _truth_badge(truth["truth_score"], truth["reliability_rating"])
+            st.markdown(
+                f"<div class='analysis-card'>"
+                f"<strong>{resp.get('agent', '?')}</strong> "
+                f"<span class='mono'>({resp.get('provider','?')} · {resp.get('model','?')})</span><br>"
+                f"{badge}"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                f"**Calibrated Confidence:** {truth['calibrated_confidence']:.2%}  \n"
+                f"**Entropy:** {truth['entropy']:.4f}  \n"
+                f"**Category:** `{truth['category']}`"
+            )
+            with st.expander("Response", expanded=False):
+                st.markdown(str(resp.get("content", "")))
+
+
+def render_debate_believability(run: Dict) -> None:
+    """Phase 2 & 3: Show debate rounds with per-model believability on the debated output."""
+    st.markdown('<div class="phase-header">💬 Phase 2 — Debate Arena</div>', unsafe_allow_html=True)
+    rounds_data = run.get("rounds", [])
+    if len(rounds_data) <= 1:
+        st.info("Only one round — debate not triggered.")
+        return
+
+    for rnd in rounds_data[1:]:  # Skip first round (already shown in Phase 1)
+        with st.expander(
+            f"Round {rnd['round']} | cost ${rnd.get('round_cost',0):.5f} | consensus {rnd.get('consensus',0):.0%}",
+            expanded=False,
+        ):
+            for resp in rnd.get("responses", []):
+                st.markdown(f"**{resp.get('agent','')}** ({resp.get('role','')})")
+                if SAM_AI_AVAILABLE and resp.get("role") == "debater":
+                    truth = compute_truth_level(
+                        str(resp.get("content", "")),
+                        _safe_float(resp.get("confidence", 0.5), 0.5),
+                    )
+                    st.markdown(_truth_badge(truth["truth_score"], truth["reliability_rating"]), unsafe_allow_html=True)
+                st.markdown(trim_text(str(resp.get("content", "")), 400))
+                st.markdown("---")
+
+    # Phase 3: Synthesized output
+    st.markdown('<div class="phase-header">🔮 Phase 3 — Consensus Synthesis</div>', unsafe_allow_html=True)
+    judge = run.get("judge")
+    if judge:
+        st.markdown(
+            f"<div class='panel'><strong>Synthesizer</strong> "
+            f"<span class='mono'>({judge.get('provider','?')} · {judge.get('model','?')})</span></div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown("<div class='answer'>", unsafe_allow_html=True)
+        st.markdown(str(judge.get("content", "")))
+        st.markdown("</div>", unsafe_allow_html=True)
+    else:
+        st.warning("No judge synthesis available.")
+
+
+def render_sam_analysis(run: Dict) -> None:
+    """Phase 4: Full SAM-AI formal analysis on the synthesized output."""
+    st.markdown('<div class="phase-header">🧠 Phase 4 — SAM-AI Formal Analysis</div>', unsafe_allow_html=True)
+    if not SAM_AI_AVAILABLE:
+        st.error(f"SAM-AI module not loaded: {_SAM_AI_IMPORT_ERROR}")
+        return
+
+    final_text = str(run.get("final_answer", ""))
+    if not final_text.strip():
+        st.info("No synthesis to analyse.")
+        return
+
+    with st.spinner("Running SAM-AI neuro-symbolic analysis…"):
+        report = run_full_analysis(final_text)
+
+    if not report.get("success"):
+        st.warning(f"Analysis error: {report.get('error', 'unknown')}")
+        return
+
+    meta = report["meta_evaluation"]
+    unc = report["uncertainty"]
+    corr = report["correction"]
+
+    # Row 1: Core scores
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.metric("Overall Quality", f"{meta['overall_quality']:.2%}")
+        q_color = "#34d399" if meta['overall_quality'] >= 0.75 else "#fbbf24" if meta['overall_quality'] >= 0.5 else "#f87171"
+        st.markdown(_score_bar(meta['overall_quality'], q_color), unsafe_allow_html=True)
+    with c2:
+        valid_html = "<span class='badge-pass'>VALID</span>" if meta['is_valid'] else "<span class='badge-fail'>INVALID</span>"
+        st.markdown(f"**Structural:** {valid_html}", unsafe_allow_html=True)
+        st.markdown(_score_bar(meta['structural_score'], "#22c55e"), unsafe_allow_html=True)
+    with c3:
+        st.metric("Calibrated Conf.", f"{unc['calibrated_confidence']:.2%}")
+        rating = unc['reliability_rating']
+        icon = {"HIGH":"🟢","MODERATE":"🟡","LOW":"🟠","VERY_LOW":"🔴"}.get(rating,"⚪")
+        st.caption(f"Reliability: {icon} {rating}")
+    with c4:
+        st.metric("Entropy", f"{unc['entropy']:.4f}")
+        st.markdown(_score_bar(meta['consistency_score'], "#3b82f6"), unsafe_allow_html=True)
+        st.caption(f"Consistency: {meta['consistency_score']:.2%}")
+
+    # Row 2: Issues & Warnings
+    issues = meta.get("issues", [])
+    warnings_list = meta.get("warnings", [])
+    if issues:
+        st.markdown("**🚨 Issues Detected:**")
+        for iss in issues:
+            st.markdown(f"<span class='badge-fail'>✖ {iss}</span>", unsafe_allow_html=True)
+    if warnings_list:
+        st.markdown("**⚠ Warnings:**")
+        for w in warnings_list:
+            st.markdown(f"<span class='badge-warn'>⚡ {w}</span>", unsafe_allow_html=True)
+    if not issues and not warnings_list:
+        st.success("✅ No logical fallacies or inconsistencies detected.")
+
+    # Row 3: Self-Correction status
+    if corr.get("was_corrected"):
+        st.markdown(
+            f"**🔄 Self-Correction:** <span class='badge-warn'>TRIGGERED</span> "
+            f"({corr['correction_rounds']} rounds) — "
+            f"Quality improved from {corr['quality_before']:.2%} → {corr['quality_after']:.2%}",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown("**🔄 Self-Correction:** <span class='badge-pass'>NOT NEEDED</span>", unsafe_allow_html=True)
 
 
 def selected_provider_keys(picked: Dict[str, object]) -> set:
@@ -666,8 +879,8 @@ def main() -> None:
     st.markdown(
         """
         <div class="hero">
-            <h1>SynapseForge Studio</h1>
-            <p>Collaborative multi-model intelligence engine. Fusing models for superior insights.</p>
+            <h1>⚡ SynapseForge Studio · V2</h1>
+            <p>Collaborative multi-model intelligence engine — now powered by SAM-AI neuro-symbolic analysis.</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -708,7 +921,7 @@ def main() -> None:
     if custom_errors:
         st.warning("Custom model issues:\n- " + "\n- ".join(custom_errors))
 
-    tab_studio, tab_feed, tab_metrics = st.tabs(["Studio", "Synthesis Feed", "Analytics"])
+    tab_studio, tab_feed, tab_analysis, tab_metrics = st.tabs(["Studio", "Synthesis Feed", "🧠 SAM-AI Analysis", "Analytics"])
 
     with tab_studio:
         left, right = st.columns([1.3, 1.0], gap="large")
@@ -827,6 +1040,21 @@ def main() -> None:
             if run.get("judge"):
                 st.markdown("### Synthesizer Output")
                 render_record(run["judge"], compact=False)
+
+    with tab_analysis:
+        run = normalize_run_payload(st.session_state.get("run"))
+        st.session_state["run"] = run
+        if not run:
+            st.info("Run a synthesis from Studio to unlock the 4-phase SAM-AI analysis.")
+        else:
+            # Phase 1: Individual Postulations + Truth Levels
+            render_individual_postulations(run)
+            st.markdown("---")
+            # Phase 2 & 3: Debate + Consensus
+            render_debate_believability(run)
+            st.markdown("---")
+            # Phase 4: SAM-AI Formal Analysis
+            render_sam_analysis(run)
 
     with tab_metrics:
         run = normalize_run_payload(st.session_state.get("run"))

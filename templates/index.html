@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SynapseForge — Multi-Model Collaborative Intelligence</title>
-  <meta name="description" content="SynapseForge fuses multiple AI models into a single collaborative intelligence engine.">
+  <title>SynapseForge — Multi-Model Collaborative Intelligence + SAM-AI</title>
+  <meta name="description" content="SynapseForge fuses multiple AI models into a single collaborative intelligence engine, powered by SAM-AI neuro-symbolic analysis.">
   <link rel="stylesheet" href="/static/styles.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
 </head>
@@ -19,23 +19,31 @@
   <div class="gradient-orb orb-1"></div>
   <div class="gradient-orb orb-2"></div>
   <div class="gradient-orb orb-3"></div>
-  <div class="lines-grid"></div>
 </div>
 
 <div class="app-container">
 
   <!-- Hero Header -->
   <header class="hero">
-    <div class="hero-badge"><span class="dot"></span> Multi-Model Collaborative AI</div>
+    <div class="hero-badge"><span class="dot"></span> Multi-Model Collaborative AI + SAM-AI Analysis</div>
     <h1>SynapseForge</h1>
-    <p>Fuse multiple AI models into one collaborative intelligence. Each model contributes unique strengths — together they deliver answers no single model can match.</p>
+    <p>Fuse multiple AI models into one collaborative intelligence. Each model contributes unique strengths — SAM-AI validates and analyzes the results with neuro-symbolic reasoning.</p>
   </header>
+
+  <!-- SAM-AI Status Banner -->
+  <div class="sam-status-banner" id="sam-status-banner">
+    <div class="sam-status-icon" id="sam-status-icon">⏳</div>
+    <div class="sam-status-text">
+      <strong id="sam-status-title">Checking SAM-AI...</strong>
+      <span id="sam-status-detail">Connecting to neuro-symbolic engine</span>
+    </div>
+  </div>
 
   <!-- 💰 COST CALCULATOR PANEL -->
   <div class="cost-panel">
     <div class="cost-header">
-      <h3>💰 Cost Calculator — 10 Model Participation</h3>
-      <p style="margin-top: 8px; color: var(--text-secondary); font-size: 0.9rem;">Estimated API cost for running 10 models simultaneously on your query</p>
+      <h3>💰 Cost Estimator</h3>
+      <p style="margin-top: 8px; color: var(--text-secondary); font-size: 0.9rem;">Estimated API cost based on selected models and rounds</p>
     </div>
     <div class="cost-grid">
       <div class="cost-item">
@@ -65,6 +73,7 @@
   <nav class="nav-tabs" id="mainNav">
     <button class="nav-tab active" data-tab="studio">⚡ Studio</button>
     <button class="nav-tab" data-tab="feed">📜 Synthesis Feed</button>
+    <button class="nav-tab" data-tab="sam-analysis">🧠 SAM-AI Analysis</button>
     <button class="nav-tab" data-tab="analytics">📊 Analytics</button>
   </nav>
 
@@ -188,6 +197,8 @@ Example: What are the most promising approaches to achieving AGI safety, and how
         <div class="grid-4" style="margin-bottom:20px" id="result-metrics"></div>
         <div class="synthesis-body" id="synthesis-body"></div>
       </div>
+      <!-- Warnings -->
+      <div id="warnings-area" style="margin-top:16px"></div>
     </div>
   </div>
 
@@ -200,6 +211,73 @@ Example: What are the most promising approaches to achieving AGI safety, and how
     <div id="feed-content" style="display:none"></div>
   </div>
 
+  <!-- ════════════════════════  SAM-AI ANALYSIS TAB  ════════════════════════ -->
+  <div class="tab-content" id="tab-sam-analysis">
+    <div id="sam-empty" class="card" style="text-align:center;padding:60px;color:var(--text-muted)">
+      <div style="font-size:2.5rem;margin-bottom:12px">🧠</div>
+      <p>Run a synthesis from the Studio tab, then SAM-AI will automatically analyze the results.</p>
+      <p style="font-size:0.85rem;margin-top:8px">The 4-phase analysis includes: Individual Truth Levels → Debate Believability → Consensus Synthesis → Formal Analysis</p>
+    </div>
+    <div id="sam-content" style="display:none">
+      <!-- Phase 1: Individual Truth Levels -->
+      <div class="sam-phase" id="sam-phase-1">
+        <div class="phase-header-bar">
+          <span class="phase-number">01</span>
+          <div>
+            <h3>Individual Postulations & Truth Levels</h3>
+            <p>Each model's initial response evaluated for reliability</p>
+          </div>
+        </div>
+        <div id="sam-individual-cards" class="sam-grid"></div>
+      </div>
+
+      <!-- Phase 2: Debate Believability -->
+      <div class="sam-phase" id="sam-phase-2">
+        <div class="phase-header-bar">
+          <span class="phase-number">02</span>
+          <div>
+            <h3>Debate Arena — Believability Tracking</h3>
+            <p>Truth-level evolution across debate rounds</p>
+          </div>
+        </div>
+        <div id="sam-debate-rounds"></div>
+      </div>
+
+      <!-- Phase 3: Consensus Synthesis -->
+      <div class="sam-phase" id="sam-phase-3">
+        <div class="phase-header-bar">
+          <span class="phase-number">03</span>
+          <div>
+            <h3>Consensus Synthesis</h3>
+            <p>Synthesizer's final answer with analysis</p>
+          </div>
+        </div>
+        <div id="sam-synthesis-output"></div>
+      </div>
+
+      <!-- Phase 4: SAM-AI Formal Analysis -->
+      <div class="sam-phase" id="sam-phase-4">
+        <div class="phase-header-bar">
+          <span class="phase-number">04</span>
+          <div>
+            <h3>SAM-AI Formal Analysis</h3>
+            <p>Neuro-symbolic reasoning quality assessment</p>
+          </div>
+        </div>
+        <div id="sam-formal-analysis">
+          <div id="sam-analysis-loading" style="display:none">
+            <div class="sam-loading-card">
+              <div class="sam-loading-spinner"></div>
+              <p>Running SAM-AI neuro-symbolic analysis pipeline...</p>
+            </div>
+          </div>
+          <div id="sam-analysis-results" style="display:none"></div>
+          <div id="sam-analysis-error" style="display:none"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ════════════════════════  ANALYTICS TAB  ════════════════════════ -->
   <div class="tab-content" id="tab-analytics">
     <div id="analytics-empty" class="card" style="text-align:center;padding:60px;color:var(--text-muted)">
@@ -210,7 +288,7 @@ Example: What are the most promising approaches to achieving AGI safety, and how
   </div>
 
   <footer class="footer">
-    SynapseForge — Multi-Model Collaborative Intelligence Engine<br>
+    SynapseForge — Multi-Model Collaborative Intelligence Engine + SAM-AI Analysis<br>
     <span style="opacity:0.6">Built by Samrisht · Research-Grade AI Debate Engine · 2026</span>
   </footer>
 </div>
@@ -219,6 +297,7 @@ Example: What are the most promising approaches to achieving AGI safety, and how
 <div class="spinner-overlay" id="loading" style="display:none">
   <div class="spinner"></div>
   <div class="spinner-text" id="loading-text">Initializing collaborative synthesis...</div>
+  <div class="spinner-sub" id="loading-sub"></div>
 </div>
 
 <script src="/static/app.js"></script>
